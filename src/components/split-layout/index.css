@@ -1,0 +1,20 @@
+.split-layout {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0;
+}
+
+.split-layout-panel {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 760px) {
+  .split-layout {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}

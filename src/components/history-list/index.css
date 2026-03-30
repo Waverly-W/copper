@@ -1,0 +1,17 @@
+.clipboard-list {
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 8px 8px 8px;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  scroll-padding-top: 8px;
+}
+
+.clipboard-list::-webkit-scrollbar {
+  display: none;
+}

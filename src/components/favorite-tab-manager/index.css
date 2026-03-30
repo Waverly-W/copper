@@ -1,0 +1,172 @@
+.favorite-tab-manager-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: var(--overlay);
+  z-index: 20;
+}
+
+.favorite-tab-manager {
+  width: min(720px, calc(100vw - 32px));
+  max-height: min(720px, calc(100vh - 32px));
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 20px;
+  border-radius: var(--radius-xl);
+  background: var(--panel-bg);
+  box-shadow: var(--panel-shadow-hover);
+  overflow: hidden;
+}
+
+.favorite-tab-manager-header,
+.favorite-tab-manager-create,
+.favorite-tab-manager-footer,
+.favorite-tab-manager-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.favorite-tab-manager-header {
+  justify-content: space-between;
+}
+
+.favorite-tab-manager-header h3 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.favorite-tab-manager-header p,
+.favorite-tab-manager-footer span {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.favorite-tab-manager-create {
+  justify-content: space-between;
+}
+
+.favorite-tab-manager-create-field {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 12px;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-md);
+  background: var(--input-bg);
+  color: var(--text-secondary);
+}
+
+.favorite-tab-manager-create-field input,
+.favorite-tab-manager-item input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  padding: 11px 0;
+}
+
+.favorite-tab-manager-list {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.favorite-tab-manager-item {
+  padding: 10px 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.favorite-tab-manager-item.is-active {
+  border-color: var(--accent-soft-strong);
+}
+
+.favorite-tab-manager-tab-chip,
+.favorite-tab-manager-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.favorite-tab-manager-tab-chip {
+  border: 1px solid var(--panel-border);
+}
+
+.favorite-tab-manager-count {
+  min-width: 32px;
+}
+
+.favorite-tab-manager-primary,
+.favorite-tab-manager-secondary,
+.favorite-tab-manager-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--panel-border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  height: 38px;
+  padding: 0 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.favorite-tab-manager-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.favorite-tab-manager-icon-button {
+  width: 38px;
+  padding: 0;
+}
+
+.favorite-tab-manager-icon-button.danger {
+  color: #b91c1c;
+}
+
+.favorite-tab-manager-footer {
+  justify-content: space-between;
+}
+
+@media (max-width: 760px) {
+  .favorite-tab-manager {
+    width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    padding: 16px;
+  }
+
+  .favorite-tab-manager-create,
+  .favorite-tab-manager-footer,
+  .favorite-tab-manager-item {
+    flex-wrap: wrap;
+  }
+
+  .favorite-tab-manager-create-field,
+  .favorite-tab-manager-item input {
+    width: 100%;
+  }
+}

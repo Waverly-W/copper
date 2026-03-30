@@ -1,0 +1,27 @@
+{
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "clipboard",
+      "explain": "打开剪贴板工作台，检索历史记录与收藏片段",
+      "cmds": [
+        "剪贴板",
+        "clipboard",
+        "clip"
+      ]
+    },
+    {
+      "code": "settings",
+      "explain": "打开剪贴板插件设置页",
+      "cmds": [
+        "剪贴板设置",
+        "clipboard settings"
+      ]
+    }
+  ]
+}
