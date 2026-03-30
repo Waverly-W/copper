@@ -3,7 +3,7 @@ import { createExternalStore } from '../utils/create-external-store'
 const initialState = {
   query: '',
   activePane: 'history',
-  activeFavoriteTabId: 'favorite-tab-snippets',
+  activeFavoriteTabId: '',
   selectedHistoryIndex: 0,
   selectedFavoriteIndex: 0
 }

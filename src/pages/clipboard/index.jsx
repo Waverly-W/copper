@@ -320,6 +320,12 @@ export default function ClipboardPage ({ onOpenSettings }) {
   }, [filteredFavoriteItems.length, selectedFavoriteIndex, setSelectedIndex])
 
   useEffect(() => {
+    if (!favoriteTabs.length) return
+    if (favoriteTabs.some((tab) => tab.id === activeFavoriteTabId)) return
+    setActiveFavoriteTabId(favoriteTabs[0].id)
+  }, [activeFavoriteTabId, favoriteTabs, setActiveFavoriteTabId])
+
+  useEffect(() => {
     const handleKeyDown = (event) => {
       const metaPressed = event.ctrlKey || event.metaKey
 

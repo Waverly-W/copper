@@ -13,6 +13,31 @@ function createLocalStorageAdapter () {
   }
 }
 
+function normalizeStorageValue (value) {
+  if (typeof value !== 'string') return value
+
+  const trimmedValue = value.trim()
+  if (!trimmedValue) return value
+
+  const looksLikeJson = (
+    trimmedValue === 'null' ||
+    trimmedValue === 'true' ||
+    trimmedValue === 'false' ||
+    trimmedValue.startsWith('{') ||
+    trimmedValue.startsWith('[') ||
+    trimmedValue.startsWith('"') ||
+    /^-?\d+(\.\d+)?$/.test(trimmedValue)
+  )
+
+  if (!looksLikeJson) return value
+
+  try {
+    return JSON.parse(trimmedValue)
+  } catch {
+    return value
+  }
+}
+
 function getPrimaryStorageAdapter () {
   if (window.utools?.dbCryptoStorage) {
     return window.utools.dbCryptoStorage
@@ -33,38 +58,65 @@ function getLegacyStorageAdapter () {
   return null
 }
 
-export function readStorageItem (key, fallbackValue) {
+function readAdapterItem (adapter, key) {
   try {
-    const primaryAdapter = getPrimaryStorageAdapter()
-    const primaryValue = primaryAdapter.getItem(key)
-    if (primaryValue != null) return primaryValue
-
-    const legacyAdapter = getLegacyStorageAdapter()
-    if (!legacyAdapter) return fallbackValue
-
-    const legacyValue = legacyAdapter.getItem(key)
-    if (legacyValue == null) return fallbackValue
-
-    primaryAdapter.setItem(key, legacyValue)
-    legacyAdapter.removeItem(key)
-    return legacyValue
+    return {
+      ok: true,
+      value: normalizeStorageValue(adapter?.getItem?.(key))
+    }
   } catch {
+    return {
+      ok: false,
+      value: null
+    }
+  }
+}
+
+export function readStorageItem (key, fallbackValue) {
+  const primaryAdapter = getPrimaryStorageAdapter()
+  const primaryResult = readAdapterItem(primaryAdapter, key)
+  if (primaryResult.ok && primaryResult.value != null) {
+    return primaryResult.value
+  }
+
+  const legacyAdapter = getLegacyStorageAdapter()
+  if (!legacyAdapter) return fallbackValue
+
+  const legacyResult = readAdapterItem(legacyAdapter, key)
+  if (!legacyResult.ok || legacyResult.value == null) {
     return fallbackValue
   }
+
+  try {
+    primaryAdapter.setItem(key, legacyResult.value)
+    legacyAdapter.removeItem(key)
+  } catch {}
+
+  return legacyResult.value
 }
 
 export function writeStorageItem (key, value) {
   const primaryAdapter = getPrimaryStorageAdapter()
-  primaryAdapter.setItem(key, value)
-
   const legacyAdapter = getLegacyStorageAdapter()
-  legacyAdapter?.removeItem(key)
+  try {
+    primaryAdapter.setItem(key, value)
+    legacyAdapter?.removeItem(key)
+    return
+  } catch {}
+
+  if (!legacyAdapter) return
+
+  legacyAdapter.setItem(key, value)
 }
 
 export function removeStorageItem (key) {
   const primaryAdapter = getPrimaryStorageAdapter()
-  primaryAdapter.removeItem(key)
-
   const legacyAdapter = getLegacyStorageAdapter()
+  try {
+    primaryAdapter.removeItem(key)
+    legacyAdapter?.removeItem(key)
+    return
+  } catch {}
+
   legacyAdapter?.removeItem(key)
 }
