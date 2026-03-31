@@ -1,0 +1,40 @@
+.clipboard-list {
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scroll-padding-top: 8px;
+}
+
+.clipboard-list::-webkit-scrollbar {
+  display: none;
+}
+
+.clipboard-list-empty {
+  display: grid;
+  padding: 8px;
+  align-content: start;
+}
+
+.clipboard-list-spacer {
+  position: relative;
+  min-height: 100%;
+}
+
+.clipboard-list-row {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  padding-bottom: 6px;
+  contain: layout paint;
+}
+
+.clipboard-list.is-scrolling .clipboard-item {
+  transition: none;
+}
+
+.clipboard-list.is-scrolling .clipboard-item::before {
+  transition: none;
+}

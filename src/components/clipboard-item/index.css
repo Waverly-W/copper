@@ -12,8 +12,7 @@
   transition:
     background-color var(--transition-base),
     border-color var(--transition-base),
-    box-shadow var(--transition-base),
-    transform var(--transition-fast);
+    opacity var(--transition-fast);
   scroll-margin-top: 8px;
 }
 
@@ -33,15 +32,11 @@
 .clipboard-item:hover {
   background: var(--list-item-hover-bg);
   border-color: var(--panel-border);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
-  transform: translateY(-1px);
 }
 
 .clipboard-item.is-selected {
-  background: var(--surface);
+  background: var(--accent-soft);
   border-color: rgba(59, 130, 246, 0.72);
-  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.42), 0 8px 18px rgba(15, 23, 42, 0.08);
-  transform: translateY(-1px);
 }
 
 .clipboard-item.is-selected::before {
@@ -90,6 +85,20 @@
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.5;
+}
+
+.clipboard-item-image-placeholder {
+  width: 100%;
+  min-height: 72px;
+  height: var(--clipboard-image-fallback-height, 120px);
+  border-radius: 12px;
+  border: 1px solid rgba(203, 213, 225, 0.56);
+  background:
+    linear-gradient(180deg, rgba(148, 163, 184, 0.14), rgba(148, 163, 184, 0.08));
+}
+
+.clipboard-item-image-fallback-text {
+  margin-top: 6px;
 }
 
 .clipboard-item-body mark {

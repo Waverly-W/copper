@@ -60,7 +60,6 @@ export default function FavoriteTabManager ({
             className='favorite-tab-manager-icon-button'
             onClick={onClose}
             aria-label='关闭分组管理'
-            title='关闭'
           >
             <CloseSmall theme='outline' size={18} fill='currentColor' />
           </button>
@@ -128,7 +127,6 @@ export default function FavoriteTabManager ({
                 className='favorite-tab-manager-icon-button danger'
                 onClick={() => onRemoveTab?.(tab.id)}
                 aria-label={`删除分组 ${tab.name}`}
-                title='删除分组'
               >
                 <Delete theme='outline' size={16} fill='currentColor' />
               </button>

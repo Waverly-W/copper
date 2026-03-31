@@ -16,7 +16,6 @@ export default function PaneHeader ({ title, count, isActive, actions = [] }) {
                 type='button'
                 className='pane-header-action'
                 onClick={action.onClick}
-                title={action.label}
                 aria-label={action.label}
               >
                 {action.icon || action.label}

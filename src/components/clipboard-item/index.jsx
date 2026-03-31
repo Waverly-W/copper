@@ -1,7 +1,11 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { FileTxt, FolderClose, Pic } from '@icon-park/react'
-import { useSettingsStore } from '../../stores/settings-store'
 import './index.css'
+
+const IMAGE_PLACEHOLDER_MIN_HEIGHT = 72
+const DEFAULT_IMAGE_PREVIEW_MAX_HEIGHT = 160
+const DEFAULT_TEXT_COLLAPSED_LINES = 6
+const imageDataUrlCache = new Map()
 
 function renderHighlightedText (text, query, highlight) {
   const safeText = String(text || '')
@@ -96,31 +100,115 @@ function getTypeIconComponent (type) {
   }
 }
 
-export default function ClipboardItem ({ item, query, isSelected, onClick, onDoubleClick }) {
-  const itemRef = useRef(null)
-  const { settings } = useSettingsStore()
+function clamp (value, min, max) {
+  return Math.min(Math.max(value, min), max)
+}
+
+function resolveCollapsedLines (item, textCollapsedLines) {
+  const normalizedLines = Number(textCollapsedLines) || DEFAULT_TEXT_COLLAPSED_LINES
+  if (item.type === 'text' || item.type === 'html') {
+    return normalizedLines
+  }
+
+  return Math.min(normalizedLines, 2)
+}
+
+function resolvePreviewHeight (item, imagePreviewMaxHeight) {
+  const maxHeight = Number(imagePreviewMaxHeight) || DEFAULT_IMAGE_PREVIEW_MAX_HEIGHT
+
+  if (item.type !== 'image') return maxHeight
+
+  const imageHeight = Number(item.imageHeight) || maxHeight
+  const imageWidth = Number(item.imageWidth) || 0
+  const normalizedHeight = imageWidth > 0
+    ? Math.round((imageHeight / imageWidth) * 240)
+    : imageHeight
+
+  return clamp(normalizedHeight || maxHeight, IMAGE_PLACEHOLDER_MIN_HEIGHT, maxHeight)
+}
+
+export function estimateClipboardItemHeight (item, settings = {}) {
+  if (!item) return 0
+
+  if (item.type === 'image') {
+    return resolvePreviewHeight(item, settings.imagePreviewMaxHeight) + 68
+  }
+
+  const collapsedLines = resolveCollapsedLines(item, settings.textCollapsedLines)
+  const lineCount = clamp(Number(item.textMetrics?.lineCount) || 1, 1, collapsedLines)
+  return 42 + (lineCount * 18)
+}
+
+function useClipboardImageDataUrl (imagePath, enabled) {
+  const [imageDataUrl, setImageDataUrl] = useState(() => {
+    if (!imagePath) return ''
+    return imageDataUrlCache.get(imagePath) || ''
+  })
+
+  useEffect(() => {
+    if (!imagePath) {
+      setImageDataUrl('')
+      return
+    }
+
+    const cachedDataUrl = imageDataUrlCache.get(imagePath)
+    if (cachedDataUrl) {
+      setImageDataUrl(cachedDataUrl)
+      return
+    }
+
+    setImageDataUrl('')
+    if (!enabled) return
+
+    let cancelled = false
+
+    const loadImageDataUrl = () => {
+      if (cancelled) return
+
+      const nextDataUrl = window.services?.readImageDataUrl?.(imagePath) || ''
+      if (cancelled || !nextDataUrl) return
+
+      imageDataUrlCache.set(imagePath, nextDataUrl)
+      setImageDataUrl(nextDataUrl)
+    }
+
+    if (typeof window.requestIdleCallback === 'function') {
+      const idleId = window.requestIdleCallback(loadImageDataUrl, { timeout: 180 })
+      return () => {
+        cancelled = true
+        window.cancelIdleCallback?.(idleId)
+      }
+    }
+
+    const timer = window.setTimeout(loadImageDataUrl, 16)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [enabled, imagePath])
+
+  return imageDataUrl
+}
+
+const ClipboardItem = memo(function ClipboardItem ({
+  item,
+  query,
+  isSelected,
+  allowImageLoading = true,
+  textCollapsedLines = DEFAULT_TEXT_COLLAPSED_LINES,
+  imagePreviewMaxHeight = DEFAULT_IMAGE_PREVIEW_MAX_HEIGHT,
+  onClick,
+  onDoubleClick
+}) {
   const favoriteBadgeLabel = getFavoriteBadgeLabel(item.favoriteStatus)
   const TypeIcon = getTypeIconComponent(item.type)
   const isImageItem = item.type === 'image'
-  const collapsedLines = item.type === 'text' || item.type === 'html'
-    ? settings.textCollapsedLines
-    : Math.min(settings.textCollapsedLines, 2)
-  const imageDataUrl = useMemo(() => {
-    if (!isImageItem) return ''
-    return window.services?.readImageDataUrl?.(item.imagePath) || ''
-  }, [isImageItem, item.imagePath])
-
-  useEffect(() => {
-    if (!isSelected) return
-    itemRef.current?.scrollIntoView({
-      block: 'nearest',
-      inline: 'nearest'
-    })
-  }, [isSelected])
+  const collapsedLines = resolveCollapsedLines(item, textCollapsedLines)
+  const resolvedPreviewHeight = resolvePreviewHeight(item, imagePreviewMaxHeight)
+  const imageDataUrl = useClipboardImageDataUrl(item.imagePath, isImageItem && allowImageLoading)
 
   return (
     <article
-      ref={itemRef}
       className={`clipboard-item ${isSelected ? 'is-selected' : ''} ${isImageItem ? 'is-image' : ''}`}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
@@ -139,42 +227,60 @@ export default function ClipboardItem ({ item, query, isSelected, onClick, onDou
       <div className='clipboard-item-content'>
         {isImageItem
           ? (
-            imageDataUrl
-              ? (
-                <div
-                  className='clipboard-item-image-wrap'
-                  style={{ '--clipboard-image-max-height': `${settings.imagePreviewMaxHeight}px` }}
-                >
-                  <img
-                    className='clipboard-item-image'
-                    src={imageDataUrl}
-                    alt={item.title || 'Clipboard image'}
-                  />
-                </div>
-                )
-              : (
-                <div className='clipboard-item-image-fallback'>
-                  {renderHighlightedText(item.title, query, item.highlight)}
-                </div>
-                )
+              imageDataUrl
+                ? (
+                    <div
+                      className='clipboard-item-image-wrap'
+                      style={{ '--clipboard-image-max-height': `${imagePreviewMaxHeight}px` }}
+                    >
+                      <img
+                        className='clipboard-item-image'
+                        src={imageDataUrl}
+                        alt={item.title || 'Clipboard image'}
+                      />
+                    </div>
+                  )
+                : (
+                    <div className='clipboard-item-image-fallback'>
+                      <div
+                        className='clipboard-item-image-placeholder'
+                        style={{ '--clipboard-image-fallback-height': `${resolvedPreviewHeight}px` }}
+                        aria-hidden='true'
+                      />
+                      <div className='clipboard-item-image-fallback-text'>
+                        {renderHighlightedText(item.title, query, item.highlight)}
+                      </div>
+                    </div>
+                  )
             )
           : (
-            <div
-              className='clipboard-item-body'
-              style={{ '--clipboard-item-lines': collapsedLines }}
-            >
-              {renderHighlightedText(item.title, query, item.highlight)}
-            </div>
+              <div
+                className='clipboard-item-body'
+                style={{ '--clipboard-item-lines': collapsedLines }}
+              >
+                {renderHighlightedText(item.title, query, item.highlight)}
+              </div>
             )}
       </div>
       {favoriteBadgeLabel
         ? (
-          <span className={`clipboard-item-favorite clipboard-item-favorite-${item.favoriteStatus}`}>
-            {favoriteBadgeLabel}
-          </span>
+            <span className={`clipboard-item-favorite clipboard-item-favorite-${item.favoriteStatus}`}>
+              {favoriteBadgeLabel}
+            </span>
           )
         : null}
       <span className='clipboard-item-time'>{item.relativeTime}</span>
     </article>
   )
+}, areClipboardItemPropsEqual)
+
+function areClipboardItemPropsEqual (previousProps, nextProps) {
+  return previousProps.item === nextProps.item &&
+    previousProps.query === nextProps.query &&
+    previousProps.isSelected === nextProps.isSelected &&
+    previousProps.allowImageLoading === nextProps.allowImageLoading &&
+    previousProps.textCollapsedLines === nextProps.textCollapsedLines &&
+    previousProps.imagePreviewMaxHeight === nextProps.imagePreviewMaxHeight
 }
+
+export default ClipboardItem
