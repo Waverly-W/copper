@@ -96,48 +96,12 @@ function getTypeIconComponent (type) {
   }
 }
 
-function pluralize (count, singular) {
-  return `${count} ${singular}${count === 1 ? '' : 's'}`
-}
-
-function buildMetaDetails (item) {
-  if (!item) return []
-
-  if (item.type === 'file' || item.type === 'files') {
-    const fileCount = item.filePaths?.length || 0
-    return [
-      item.typeLabel,
-      pluralize(fileCount, 'file'),
-      pluralize(item.copyCount || 0, 'copy')
-    ]
-  }
-
-  if (item.type === 'image') {
-    const details = [item.typeLabel]
-    if (item.imageWidth && item.imageHeight) {
-      details.push(`${item.imageWidth} x ${item.imageHeight}`)
-    }
-    details.push(pluralize(item.copyCount || 0, 'copy'))
-    return details
-  }
-
-  const charCount = item.textMetrics?.charCount || 0
-  const lineCount = item.textMetrics?.lineCount || 0
-  return [
-    item.typeLabel,
-    pluralize(charCount, 'char'),
-    pluralize(lineCount, 'line'),
-    pluralize(item.copyCount || 0, 'copy')
-  ]
-}
-
 export default function ClipboardItem ({ item, query, isSelected, onClick, onDoubleClick }) {
   const itemRef = useRef(null)
   const { settings } = useSettingsStore()
   const favoriteBadgeLabel = getFavoriteBadgeLabel(item.favoriteStatus)
   const TypeIcon = getTypeIconComponent(item.type)
   const isImageItem = item.type === 'image'
-  const metaDetails = buildMetaDetails(item)
   const collapsedLines = item.type === 'text' || item.type === 'html'
     ? settings.textCollapsedLines
     : Math.min(settings.textCollapsedLines, 2)
@@ -211,13 +175,6 @@ export default function ClipboardItem ({ item, query, isSelected, onClick, onDou
           )
         : null}
       <span className='clipboard-item-time'>{item.relativeTime}</span>
-      <div className='clipboard-item-meta' aria-hidden='true'>
-        {metaDetails.map((detail) => (
-          <span key={detail} className='clipboard-item-meta-chip'>
-            {detail}
-          </span>
-        ))}
-      </div>
     </article>
   )
 }

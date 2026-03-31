@@ -550,7 +550,7 @@ type ClipboardWriter = {
 
 - `Enter`
   - 仅执行复制到系统剪贴板
-- `Space`
+- `双击 Enter`
   - 调用 uTools 粘贴能力回填到插件呼出前窗口
   - 完成后关闭插件
 
@@ -876,4 +876,3 @@ ClipboardPage
 - 最后推进富文本保真
 
 这条路径最符合当前需求优先级，也最能降低早期返工风险。
-

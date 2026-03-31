@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ConnectionBox, FileEditing, Newlybuild, SettingTwo, Star } from '@icon-park/react'
 import SplitLayout from '../../components/split-layout'
 import PaneHeader from '../../components/pane-header'
@@ -13,6 +13,8 @@ import { useHistoryStore } from '../../stores/history-store'
 import { useFavoriteStore } from '../../stores/favorite-store'
 import { useUIStore } from '../../stores/ui-store'
 import './index.css'
+
+const DOUBLE_ENTER_PASTE_INTERVAL_MS = 320
 
 function buildFavoriteStatusMap (favoriteItems, activeFavoriteTabId) {
   return favoriteItems.reduce((map, favoriteItem) => {
@@ -105,6 +107,7 @@ export default function ClipboardPage ({ onOpenSettings }) {
   const [favoriteDraft, setFavoriteDraft] = useState(null)
   const [isManagingTabs, setIsManagingTabs] = useState(false)
   const [activeHistoryTypeTabId, setActiveHistoryTypeTabId] = useState('all')
+  const lastEnterAtRef = useRef(0)
   const {
     query,
     activePane,
@@ -327,7 +330,16 @@ export default function ClipboardPage ({ onOpenSettings }) {
 
   useEffect(() => {
     const handleKeyDown = (event) => {
+      const activeElement = document.activeElement
+      const isTyping = activeElement?.tagName === 'INPUT' ||
+        activeElement?.tagName === 'TEXTAREA' ||
+        activeElement?.isContentEditable
+
       const metaPressed = event.ctrlKey || event.metaKey
+
+      if (event.key !== 'Enter') {
+        lastEnterAtRef.current = 0
+      }
 
       if (metaPressed && event.key.toLowerCase() === 'f') {
         event.preventDefault()
@@ -420,25 +432,28 @@ export default function ClipboardPage ({ onOpenSettings }) {
       }
 
       if (event.key === 'Enter') {
-        event.preventDefault()
-        if (activeItem) {
-          handleCopyItem(activeItem, activePane === 'history' ? selectedHistoryIndex : selectedFavoriteIndex)
-        } else {
-          triggerAction('copy')
-        }
-        return
-      }
-
-      if (event.key === ' ') {
-        const activeElement = document.activeElement
-        const isTyping = activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA'
         if (isTyping) return
         event.preventDefault()
-        if (activeItem) {
-          handlePasteItem(activeItem, activePane === 'history' ? selectedHistoryIndex : selectedFavoriteIndex)
+
+        const now = Date.now()
+        const isDoubleEnter = (now - lastEnterAtRef.current) <= DOUBLE_ENTER_PASTE_INTERVAL_MS
+        lastEnterAtRef.current = now
+
+        if (isDoubleEnter) {
+          if (activeItem) {
+            handlePasteItem(activeItem, activePane === 'history' ? selectedHistoryIndex : selectedFavoriteIndex)
+          } else {
+            triggerAction('paste')
+          }
         } else {
-          triggerAction('paste')
+          if (activeItem) {
+            handleCopyItem(activeItem, activePane === 'history' ? selectedHistoryIndex : selectedFavoriteIndex)
+          } else {
+            triggerAction('copy')
+          }
         }
+
+        return
       }
 
       if (metaPressed && event.key.toLowerCase() === 'd') {

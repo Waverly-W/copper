@@ -134,42 +134,6 @@
   color: var(--text-secondary);
 }
 
-.clipboard-item-meta {
-  grid-column: 2 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
-  pointer-events: none;
-  transition:
-    max-height var(--transition-base),
-    opacity var(--transition-fast),
-    margin-top var(--transition-fast);
-}
-
-.clipboard-item:hover .clipboard-item-meta {
-  max-height: 48px;
-  margin-top: -2px;
-  opacity: 1;
-}
-
-.clipboard-item-meta-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 20px;
-  padding: 0 8px;
-  border-radius: 999px;
-  background: rgba(148, 163, 184, 0.12);
-  border: 1px solid rgba(203, 213, 225, 0.84);
-  color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 1;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-
 .clipboard-item-type {
   display: inline-flex;
   align-items: center;
@@ -227,10 +191,6 @@
   padding-top: 1px;
 }
 
-.clipboard-item.is-image .clipboard-item-meta {
-  grid-column: 1 / -1;
-}
-
 @media (max-width: 760px) {
   .clipboard-item {
     grid-template-columns: auto minmax(0, 1fr) auto;
@@ -256,10 +216,6 @@
   .clipboard-item-favorite {
     grid-area: favorite;
     justify-self: start;
-  }
-
-  .clipboard-item-meta {
-    grid-column: 1 / -1;
   }
 
   .clipboard-item.is-image {
