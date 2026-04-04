@@ -51,21 +51,23 @@ export default function FavoriteTabManager ({
     <div className='favorite-tab-manager-backdrop'>
       <div className='favorite-tab-manager'>
         <header className='favorite-tab-manager-header'>
-          <div>
+          <div className='favorite-tab-manager-header-copy'>
             <h3>管理分组</h3>
-            <p>查看、重命名、新增或删除收藏分组。</p>
+            <p>新增、切换、重命名或删除收藏分组。</p>
           </div>
           <button
             type='button'
             className='favorite-tab-manager-icon-button'
             onClick={onClose}
             aria-label='关闭分组管理'
+            title='关闭'
           >
             <CloseSmall theme='outline' size={18} fill='currentColor' />
           </button>
         </header>
 
         <section className='favorite-tab-manager-create'>
+          <span className='favorite-tab-manager-section-label'>新增分组</span>
           <div className='favorite-tab-manager-create-field'>
             <ConnectionBox theme='outline' size={16} fill='currentColor' />
             <input
@@ -95,41 +97,46 @@ export default function FavoriteTabManager ({
               key={tab.id}
               className={`favorite-tab-manager-item ${tab.id === activeTabId ? 'is-active' : ''}`}
             >
-              <button
-                type='button'
-                className='favorite-tab-manager-tab-chip'
-                onClick={() => onActivateTab?.(tab.id)}
-              >
-                {tab.name}
-              </button>
-              <input
-                value={draftNames[tab.id] || ''}
-                onChange={(event) => {
-                  setDraftNames((current) => ({
-                    ...current,
-                    [tab.id]: event.target.value
-                  }))
-                }}
-                aria-label={`${tab.name} 分组名称`}
-              />
-              <span className='favorite-tab-manager-count'>
-                {tabUsageMap[tab.id] || 0}
-              </span>
-              <button
-                type='button'
-                className='favorite-tab-manager-secondary'
-                onClick={() => onRenameTab?.(tab.id, draftNames[tab.id])}
-              >
-                保存
-              </button>
-              <button
-                type='button'
-                className='favorite-tab-manager-icon-button danger'
-                onClick={() => onRemoveTab?.(tab.id)}
-                aria-label={`删除分组 ${tab.name}`}
-              >
-                <Delete theme='outline' size={16} fill='currentColor' />
-              </button>
+              <div className='favorite-tab-manager-item-main'>
+                <button
+                  type='button'
+                  className='favorite-tab-manager-tab-chip'
+                  onClick={() => onActivateTab?.(tab.id)}
+                >
+                  {tab.name}
+                </button>
+                <input
+                  value={draftNames[tab.id] || ''}
+                  onChange={(event) => {
+                    setDraftNames((current) => ({
+                      ...current,
+                      [tab.id]: event.target.value
+                    }))
+                  }}
+                  aria-label={`${tab.name} 分组名称`}
+                />
+              </div>
+              <div className='favorite-tab-manager-item-actions'>
+                <span className='favorite-tab-manager-count'>
+                  {tabUsageMap[tab.id] || 0}
+                </span>
+                <button
+                  type='button'
+                  className='favorite-tab-manager-secondary'
+                  onClick={() => onRenameTab?.(tab.id, draftNames[tab.id])}
+                >
+                  保存
+                </button>
+                <button
+                  type='button'
+                  className='favorite-tab-manager-icon-button danger'
+                  onClick={() => onRemoveTab?.(tab.id)}
+                  aria-label={`删除分组 ${tab.name}`}
+                  title='删除分组'
+                >
+                  <Delete theme='outline' size={16} fill='currentColor' />
+                </button>
+              </div>
             </article>
           ))}
         </div>

@@ -1,20 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ConnectionBox, FileEditing, Newlybuild, SettingTwo, Star } from '@icon-park/react'
+import { Analysis, ConnectionBox, CopyOne, DeleteOne, FileEditing, Newlybuild, SendOne, SettingTwo, Star } from '@icon-park/react'
 import SplitLayout from '../../components/split-layout'
 import PaneHeader from '../../components/pane-header'
 import HistoryList from '../../components/history-list'
 import FavoriteList from '../../components/favorite-list'
 import FavoriteEditor from '../../components/favorite-editor'
 import FavoriteTabManager from '../../components/favorite-tab-manager'
+import TextAnalysisModal from '../../components/text-analysis-modal'
 import TabBar from '../../components/tab-bar'
-import { copyClipboardItem, notifyActionResult, pasteClipboardItem } from '../../services/clipboard/item-actions'
+import {
+  copyClipboardItem,
+  copyClipboardItems,
+  notifyActionResult,
+  pasteClipboardItem,
+  pasteClipboardItems
+} from '../../services/clipboard/item-actions'
 import { useSearchResults } from '../../services/search/use-search-results'
+import { analyzeClipboardText } from '../../services/text-analysis/analyze-clipboard-text'
 import { useHistoryStore } from '../../stores/history-store'
 import { useFavoriteStore } from '../../stores/favorite-store'
 import { useUIStore } from '../../stores/ui-store'
 import './index.css'
-
-const DOUBLE_ENTER_PASTE_INTERVAL_MS = 320
 
 function buildFavoriteStatusMap (favoriteItems, activeFavoriteTabId) {
   return favoriteItems.reduce((map, favoriteItem) => {
@@ -38,6 +44,14 @@ function getHistoryFavoriteActionLabel (favoriteStatus) {
 
 function buildHeaderIcon (IconComponent) {
   return <IconComponent theme='outline' size={18} fill='currentColor' />
+}
+
+function buildToolbarIcon (IconComponent) {
+  return (
+    <span className='clipboard-toolbar-icon' aria-hidden='true'>
+      <IconComponent theme='outline' size={18} strokeWidth={2.8} fill='currentColor' />
+    </span>
+  )
 }
 
 function buildHistoryTypeTabs (historyItems) {
@@ -103,11 +117,40 @@ function getAdjacentFavoriteTabId (tabs, activeTabId, direction) {
   return tabs[nextIndex]?.id || null
 }
 
+function clampIndex (value, maxIndex) {
+  if (maxIndex <= 0) return 0
+  if (value < 0) return 0
+  if (value > maxIndex) return maxIndex
+  return value
+}
+
+function buildRangeSelectionIds (items, startIndex, endIndex) {
+  if (startIndex <= endIndex) {
+    return items.slice(startIndex, endIndex + 1).map((item) => item.id)
+  }
+
+  return items.slice(endIndex, startIndex + 1).map((item) => item.id).reverse()
+}
+
+function getSelectedItems (items, selectedIds, fallbackIndex) {
+  const itemMap = new Map(items.map((item) => [item.id, item]))
+  const selectedItems = selectedIds
+    .map((itemId) => itemMap.get(itemId))
+    .filter(Boolean)
+  if (selectedItems.length) return selectedItems
+  const fallbackItem = items[fallbackIndex]
+  return fallbackItem ? [fallbackItem] : []
+}
+
 export default function ClipboardPage ({ onOpenSettings }) {
   const [favoriteDraft, setFavoriteDraft] = useState(null)
   const [isManagingTabs, setIsManagingTabs] = useState(false)
+  const [isAnalyzingText, setIsAnalyzingText] = useState(false)
+  const [textAnalysisDraft, setTextAnalysisDraft] = useState(null)
   const [activeHistoryTypeTabId, setActiveHistoryTypeTabId] = useState('all')
+  const [selectedIdsByPane, setSelectedIdsByPane] = useState({ history: [], favorite: [] })
   const lastEnterAtRef = useRef(0)
+  const selectionAnchorRef = useRef({ history: null, favorite: null })
   const {
     query,
     activePane,
@@ -117,7 +160,6 @@ export default function ClipboardPage ({ onOpenSettings }) {
     setActivePane,
     setActiveFavoriteTabId,
     setSelectedIndex,
-    moveSelection,
     triggerAction
   } = useUIStore()
 
@@ -159,6 +201,30 @@ export default function ClipboardPage ({ onOpenSettings }) {
   const activeHistoryItem = filteredHistoryItems[selectedHistoryIndex] || null
   const activeFavoriteItem = filteredFavoriteItems[selectedFavoriteIndex] || null
   const activeItem = activePane === 'history' ? activeHistoryItem : activeFavoriteItem
+  const activeItemIndex = activePane === 'history' ? selectedHistoryIndex : selectedFavoriteIndex
+  const selectedHistoryItems = useMemo(() => {
+    return getSelectedItems(filteredHistoryItems, selectedIdsByPane.history, selectedHistoryIndex)
+  }, [filteredHistoryItems, selectedHistoryIndex, selectedIdsByPane.history])
+  const selectedFavoriteItems = useMemo(() => {
+    return getSelectedItems(filteredFavoriteItems, selectedIdsByPane.favorite, selectedFavoriteIndex)
+  }, [filteredFavoriteItems, selectedFavoriteIndex, selectedIdsByPane.favorite])
+  const activeSelectedItems = activePane === 'history' ? selectedHistoryItems : selectedFavoriteItems
+  const activeAnalyzableItem = activeSelectedItems.length === 1 &&
+    (activeSelectedItems[0]?.type === 'text' || activeSelectedItems[0]?.type === 'html')
+    ? activeSelectedItems[0]
+    : null
+
+  const resetMultiSelection = () => {
+    setSelectedIdsByPane({ history: [], favorite: [] })
+    selectionAnchorRef.current = { history: null, favorite: null }
+  }
+
+  const handleActivatePane = (pane) => {
+    if (pane !== activePane) {
+      resetMultiSelection()
+    }
+    setActivePane(pane)
+  }
 
   const handleCopyItem = (item, index, pane = activePane) => {
     if (pane === 'history') {
@@ -204,6 +270,38 @@ export default function ClipboardPage ({ onOpenSettings }) {
     }
   }
 
+  const handleDeleteSelectedItems = () => {
+    if (!activeSelectedItems.length) return
+
+    if (activePane === 'history') {
+      activeSelectedItems.forEach((item) => {
+        removeHistoryItem(item.id)
+      })
+      notifyActionResult(`已删除 ${activeSelectedItems.length} 条历史记录。`)
+      resetMultiSelection()
+      return
+    }
+
+    let detachedCount = 0
+    let deletedCount = 0
+
+    activeSelectedItems.forEach((item) => {
+      const removeResult = removeFavoriteItem(item.id, activeFavoriteTabId)
+      if (removeResult.status === 'detached') detachedCount += 1
+      if (removeResult.status === 'deleted') deletedCount += 1
+    })
+
+    if (detachedCount && deletedCount) {
+      notifyActionResult(`已移除 ${detachedCount} 项并删除 ${deletedCount} 项收藏。`)
+    } else if (detachedCount) {
+      notifyActionResult(`已从当前 Tab 移除 ${detachedCount} 项收藏。`)
+    } else if (deletedCount) {
+      notifyActionResult(`已删除 ${deletedCount} 项收藏。`)
+    }
+
+    resetMultiSelection()
+  }
+
   const handleToggleFavoriteCurrentItem = () => {
     if (!activeItem) return
 
@@ -218,8 +316,45 @@ export default function ClipboardPage ({ onOpenSettings }) {
     }
   }
 
+  const handleOpenTextAnalysis = async () => {
+    if (!activeAnalyzableItem) return
+
+    const sourceText = activeAnalyzableItem.contentText || activeAnalyzableItem.title || ''
+    setIsAnalyzingText(true)
+
+    try {
+      const analysisResult = await analyzeClipboardText(sourceText)
+
+      setTextAnalysisDraft({
+        itemId: activeAnalyzableItem.id,
+        title: activeAnalyzableItem.title || activeAnalyzableItem.contentText || '当前文本项',
+        ...analysisResult
+      })
+    } catch {
+      notifyActionResult('文本分析暂时不可用，请稍后重试。')
+    } finally {
+      setIsAnalyzingText(false)
+    }
+  }
+
+  const handleCopyAnalysisItems = (items) => {
+    if (!items?.length || !window.utools?.copyText) return false
+    const text = items
+      .slice()
+      .sort((left, right) => left.start - right.start)
+      .map((item) => item.text)
+      .join('')
+
+    if (window.utools.copyText(text)) {
+      notifyActionResult(`已复制 ${items.length} 个分词项。`)
+      return true
+    }
+
+    return false
+  }
+
   const handleCreateFavorite = () => {
-    setActivePane('favorite')
+    handleActivatePane('favorite')
     setFavoriteDraft({
       mode: 'create',
       type: 'text',
@@ -247,7 +382,7 @@ export default function ClipboardPage ({ onOpenSettings }) {
     if (favoriteDraft.mode === 'create-tab') {
       const createdTab = addFavoriteTab(draftValues.title)
       if (createdTab) {
-        setActivePane('favorite')
+        handleActivatePane('favorite')
         setActiveFavoriteTabId(createdTab.id)
         notifyActionResult('已创建新的收藏分组。')
       }
@@ -280,7 +415,7 @@ export default function ClipboardPage ({ onOpenSettings }) {
     if (!createdTab) return null
 
     notifyActionResult('已创建新的收藏分组。')
-    setActivePane('favorite')
+    handleActivatePane('favorite')
     setActiveFavoriteTabId(createdTab.id)
     return createdTab
   }
@@ -310,6 +445,107 @@ export default function ClipboardPage ({ onOpenSettings }) {
     return removeResult
   }
 
+  const updatePaneSelection = (pane, selectedIds) => {
+    setSelectedIdsByPane((currentState) => ({
+      ...currentState,
+      [pane]: selectedIds
+    }))
+  }
+
+  const handleSelectItem = (item, index, pane = activePane, event = null) => {
+    const visibleItems = pane === 'history' ? filteredHistoryItems : filteredFavoriteItems
+    const metaPressed = event?.ctrlKey || event?.metaKey
+    const shiftPressed = event?.shiftKey
+    const currentSelectedIds = selectedIdsByPane[pane]
+    const currentIndex = pane === 'history' ? selectedHistoryIndex : selectedFavoriteIndex
+
+    setSelectedIndex(pane, index)
+
+    if (shiftPressed && visibleItems.length) {
+      const anchorIndex = selectionAnchorRef.current[pane] ?? currentIndex
+      updatePaneSelection(pane, buildRangeSelectionIds(visibleItems, anchorIndex, index))
+      return
+    }
+
+    selectionAnchorRef.current[pane] = index
+
+    if (metaPressed) {
+      if (currentSelectedIds.includes(item.id)) {
+        if (currentSelectedIds.length <= 1) {
+          updatePaneSelection(pane, currentSelectedIds)
+          return
+        }
+
+        const removedIndex = currentSelectedIds.indexOf(item.id)
+        const nextSelectedIds = currentSelectedIds.filter((selectedId) => selectedId !== item.id)
+        const nextActiveId = nextSelectedIds[Math.min(removedIndex, nextSelectedIds.length - 1)]
+        const nextActiveIndex = visibleItems.findIndex((visibleItem) => visibleItem.id === nextActiveId)
+
+        if (nextActiveIndex >= 0) {
+          setSelectedIndex(pane, nextActiveIndex)
+          selectionAnchorRef.current[pane] = nextActiveIndex
+        }
+
+        updatePaneSelection(pane, nextSelectedIds)
+        return
+      }
+
+      const nextSelectedIds = [...currentSelectedIds, item.id]
+      updatePaneSelection(pane, nextSelectedIds)
+      return
+    }
+
+    updatePaneSelection(pane, [item.id])
+  }
+
+  const handleMoveSelection = (direction) => {
+    const pane = activePane
+    const items = pane === 'history' ? filteredHistoryItems : filteredFavoriteItems
+    if (!items.length) return
+
+    const currentIndex = pane === 'history' ? selectedHistoryIndex : selectedFavoriteIndex
+    const delta = direction === 'down' ? 1 : -1
+    const nextIndex = clampIndex(currentIndex + delta, items.length - 1)
+    const nextItem = items[nextIndex]
+    if (!nextItem) return
+
+    selectionAnchorRef.current[pane] = nextIndex
+    setSelectedIndex(pane, nextIndex)
+    updatePaneSelection(pane, [nextItem.id])
+  }
+
+  const handleToolbarCopy = () => {
+    if (activeSelectedItems.length > 1) {
+      if (copyClipboardItems(activeSelectedItems)) {
+        notifyActionResult(`已复制 ${activeSelectedItems.length} 项到系统剪贴板。`)
+      }
+      return
+    }
+
+    if (activeItem) {
+      handleCopyItem(activeItem, activeItemIndex)
+      return
+    }
+
+    triggerAction('copy')
+  }
+
+  const handleToolbarPaste = () => {
+    if (activeSelectedItems.length > 1) {
+      if (pasteClipboardItems(activeSelectedItems)) {
+        notifyActionResult(`已合并粘贴 ${activeSelectedItems.length} 项内容。`)
+      }
+      return
+    }
+
+    if (activeItem) {
+      handlePasteItem(activeItem, activeItemIndex)
+      return
+    }
+
+    triggerAction('paste')
+  }
+
   useEffect(() => {
     if (!filteredHistoryItems.length) return
     if (selectedHistoryIndex < filteredHistoryItems.length) return
@@ -317,10 +553,26 @@ export default function ClipboardPage ({ onOpenSettings }) {
   }, [filteredHistoryItems.length, selectedHistoryIndex, setSelectedIndex])
 
   useEffect(() => {
+    const visibleIds = new Set(filteredHistoryItems.map((item) => item.id))
+    setSelectedIdsByPane((currentState) => ({
+      ...currentState,
+      history: currentState.history.filter((itemId) => visibleIds.has(itemId))
+    }))
+  }, [filteredHistoryItems])
+
+  useEffect(() => {
     if (!filteredFavoriteItems.length) return
     if (selectedFavoriteIndex < filteredFavoriteItems.length) return
     setSelectedIndex('favorite', filteredFavoriteItems.length - 1)
   }, [filteredFavoriteItems.length, selectedFavoriteIndex, setSelectedIndex])
+
+  useEffect(() => {
+    const visibleIds = new Set(filteredFavoriteItems.map((item) => item.id))
+    setSelectedIdsByPane((currentState) => ({
+      ...currentState,
+      favorite: currentState.favorite.filter((itemId) => visibleIds.has(itemId))
+    }))
+  }, [filteredFavoriteItems])
 
   useEffect(() => {
     if (!favoriteTabs.length) return
@@ -330,16 +582,7 @@ export default function ClipboardPage ({ onOpenSettings }) {
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      const activeElement = document.activeElement
-      const isTyping = activeElement?.tagName === 'INPUT' ||
-        activeElement?.tagName === 'TEXTAREA' ||
-        activeElement?.isContentEditable
-
       const metaPressed = event.ctrlKey || event.metaKey
-
-      if (event.key !== 'Enter') {
-        lastEnterAtRef.current = 0
-      }
 
       if (metaPressed && event.key.toLowerCase() === 'f') {
         event.preventDefault()
@@ -383,6 +626,7 @@ export default function ClipboardPage ({ onOpenSettings }) {
         const targetTab = favoriteTabs[tabIndex]
         if (!targetTab) return
         event.preventDefault()
+        resetMultiSelection()
         setActivePane('favorite')
         setActiveFavoriteTabId(targetTab.id)
         return
@@ -396,6 +640,7 @@ export default function ClipboardPage ({ onOpenSettings }) {
           event.shiftKey ? 'previous' : 'next'
         )
         if (!nextTabId) return
+        resetMultiSelection()
         setActivePane('favorite')
         setActiveFavoriteTabId(nextTabId)
         return
@@ -403,62 +648,59 @@ export default function ClipboardPage ({ onOpenSettings }) {
 
       if (event.key === 'ArrowRight' && activePane === 'history') {
         event.preventDefault()
-        setActivePane('favorite')
+        handleActivatePane('favorite')
         return
       }
 
       if (event.key === 'ArrowLeft' && activePane === 'favorite') {
         event.preventDefault()
-        setActivePane('history')
+        handleActivatePane('history')
         return
       }
 
       if (event.key === 'ArrowDown') {
         event.preventDefault()
-        moveSelection('down', {
-          historyCount: filteredHistoryItems.length,
-          favoriteCount: filteredFavoriteItems.length
-        })
+        handleMoveSelection('down')
         return
       }
 
       if (event.key === 'ArrowUp') {
         event.preventDefault()
-        moveSelection('up', {
-          historyCount: filteredHistoryItems.length,
-          favoriteCount: filteredFavoriteItems.length
-        })
+        handleMoveSelection('up')
         return
       }
 
       if (event.key === 'Enter') {
-        if (isTyping) return
         event.preventDefault()
+        if (!activeItem) return
 
         const now = Date.now()
-        const isDoubleEnter = (now - lastEnterAtRef.current) <= DOUBLE_ENTER_PASTE_INTERVAL_MS
+        const isDoubleEnter = now - lastEnterAtRef.current <= 300
         lastEnterAtRef.current = now
 
         if (isDoubleEnter) {
-          if (activeItem) {
-            handlePasteItem(activeItem, activePane === 'history' ? selectedHistoryIndex : selectedFavoriteIndex)
-          } else {
-            triggerAction('paste')
-          }
+          handleToolbarPaste()
         } else {
-          if (activeItem) {
-            handleCopyItem(activeItem, activePane === 'history' ? selectedHistoryIndex : selectedFavoriteIndex)
-          } else {
-            triggerAction('copy')
-          }
+          handleSelectItem(activeItem, activeItemIndex, activePane)
         }
-
         return
+      }
+
+      if (event.key === ' ') {
+        const activeElement = document.activeElement
+        const isTyping = activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA'
+        if (isTyping) return
+        event.preventDefault()
+        handleToolbarPaste()
       }
 
       if (metaPressed && event.key.toLowerCase() === 'd') {
         event.preventDefault()
-        handleDeleteCurrentItem()
+        if (activeSelectedItems.length > 1) {
+          handleDeleteSelectedItems()
+        } else {
+          handleDeleteCurrentItem()
+        }
       }
     }
 
@@ -472,14 +714,17 @@ export default function ClipboardPage ({ onOpenSettings }) {
     favoriteTabs,
     filteredFavoriteItems.length,
     filteredHistoryItems.length,
-    moveSelection,
     onOpenSettings,
     selectedFavoriteIndex,
     selectedHistoryIndex,
     setActiveFavoriteTabId,
     setActivePane,
     setSelectedIndex,
-    triggerAction
+    triggerAction,
+    activeSelectedItems,
+    handleDeleteSelectedItems,
+    handleToolbarCopy,
+    handleToolbarPaste
   ])
 
   return (
@@ -507,6 +752,7 @@ export default function ClipboardPage ({ onOpenSettings }) {
               tabs={historyTypeTabs}
               activeTabId={activeHistoryTypeTabId}
               onChange={(tabId) => {
+                resetMultiSelection()
                 setActivePane('history')
                 setActiveHistoryTypeTabId(tabId)
                 setSelectedIndex('history', 0)
@@ -516,9 +762,9 @@ export default function ClipboardPage ({ onOpenSettings }) {
               items={filteredHistoryItems}
               query={query}
               selectedIndex={selectedHistoryIndex}
+              selectedIds={selectedIdsByPane.history}
               isActive={activePane === 'history'}
-              onFocus={() => setActivePane('history')}
-              onCopyItem={(item, index) => handleCopyItem(item, index, 'history')}
+              onSelectItem={(item, index, event) => handleSelectItem(item, index, 'history', event)}
               onPasteItem={(item, index) => handlePasteItem(item, index, 'history')}
             />
           </section>
@@ -542,6 +788,7 @@ export default function ClipboardPage ({ onOpenSettings }) {
               activeTabId={activeFavoriteTabId}
               showIndexBadge
               onChange={(tabId) => {
+                resetMultiSelection()
                 setActivePane('favorite')
                 setActiveFavoriteTabId(tabId)
               }}
@@ -550,9 +797,9 @@ export default function ClipboardPage ({ onOpenSettings }) {
               items={filteredFavoriteItems}
               query={query}
               selectedIndex={selectedFavoriteIndex}
+              selectedIds={selectedIdsByPane.favorite}
               isActive={activePane === 'favorite'}
-              onFocus={() => setActivePane('favorite')}
-              onCopyItem={(item, index) => handleCopyItem(item, index, 'favorite')}
+              onSelectItem={(item, index, event) => handleSelectItem(item, index, 'favorite', event)}
               onPasteItem={(item, index) => handlePasteItem(item, index, 'favorite')}
             />
           </section>
@@ -578,12 +825,60 @@ export default function ClipboardPage ({ onOpenSettings }) {
             onRenameTab={handleRenameFavoriteTab}
             onRemoveTab={handleRemoveFavoriteTab}
             onActivateTab={(tabId) => {
+              resetMultiSelection()
               setActivePane('favorite')
               setActiveFavoriteTabId(tabId)
             }}
           />
           )
         : null}
+      {textAnalysisDraft
+        ? (
+          <TextAnalysisModal
+            draft={textAnalysisDraft}
+            onClose={() => setTextAnalysisDraft(null)}
+            onCopyItems={handleCopyAnalysisItems}
+          />
+          )
+        : null}
+      <div className='clipboard-floating-toolbar' aria-label='当前选中项操作'>
+        <button
+          type='button'
+          className='clipboard-floating-toolbar-button'
+          onClick={handleOpenTextAnalysis}
+          disabled={!activeAnalyzableItem || isAnalyzingText}
+          aria-label='分析当前文本项'
+        >
+          {buildToolbarIcon(Analysis)}
+        </button>
+        <button
+          type='button'
+          className='clipboard-floating-toolbar-button'
+          onClick={activeSelectedItems.length > 1 ? handleDeleteSelectedItems : handleDeleteCurrentItem}
+          disabled={!activeItem}
+          aria-label='删除当前选中项'
+        >
+          {buildToolbarIcon(DeleteOne)}
+        </button>
+        <button
+          type='button'
+          className='clipboard-floating-toolbar-button'
+          onClick={handleToolbarCopy}
+          disabled={!activeItem}
+          aria-label='复制当前选中项'
+        >
+          {buildToolbarIcon(CopyOne)}
+        </button>
+        <button
+          type='button'
+          className='clipboard-floating-toolbar-button clipboard-floating-toolbar-button-primary'
+          onClick={handleToolbarPaste}
+          disabled={!activeItem}
+          aria-label='粘贴当前选中项'
+        >
+          {buildToolbarIcon(SendOne)}
+        </button>
+      </div>
     </div>
   )
 }

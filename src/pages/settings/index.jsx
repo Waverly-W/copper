@@ -90,9 +90,7 @@ export default function SettingsPage ({ onBack }) {
         <div>
           <p className='settings-eyebrow'>Settings</p>
           <h1>插件设置</h1>
-          <p className='settings-description'>
-            当前阶段先把主题、历史容量、展示参数和监听状态做稳。搜索索引、富文本保留和更完整的常驻监听会在后续阶段继续补强。
-          </p>
+          <p className='settings-description'>主题、历史容量、展示参数与监听状态。</p>
         </div>
         {onBack
           ? (
@@ -109,72 +107,92 @@ export default function SettingsPage ({ onBack }) {
 
       <section className='settings-grid'>
         <label className='settings-field'>
-          <span>主题模式</span>
-          <small>控制主界面的深色、浅色或跟随系统。</small>
-          <select
-            value={settings.themeMode}
-            onChange={(event) => updateSettings({ themeMode: event.target.value })}
-          >
-            <option value='system'>跟随系统</option>
-            <option value='dark'>深色</option>
-            <option value='light'>浅色</option>
-          </select>
+          <div className='settings-field-copy'>
+            <span>主题模式</span>
+            <small>浅色 / 深色 / 跟随系统</small>
+          </div>
+          <div className='settings-field-control'>
+            <select
+              value={settings.themeMode}
+              onChange={(event) => updateSettings({ themeMode: event.target.value })}
+            >
+              <option value='system'>跟随系统</option>
+              <option value='dark'>深色</option>
+              <option value='light'>浅色</option>
+            </select>
+          </div>
         </label>
 
         <label className='settings-field'>
-          <span>历史记录上限</span>
-          <small>超过最短保留天数后，会按这个数量截断最旧记录。</small>
-          <input
-            type='number'
-            min='1000'
-            max='20000'
-            step='500'
-            value={settings.maxHistoryCount}
-            onChange={(event) => updateSettings({ maxHistoryCount: Number(event.target.value) })}
-          />
+          <div className='settings-field-copy'>
+            <span>历史记录上限</span>
+            <small>超出后按数量截断</small>
+          </div>
+          <div className='settings-field-control'>
+            <input
+              type='number'
+              min='1000'
+              max='20000'
+              step='500'
+              value={settings.maxHistoryCount}
+              onChange={(event) => updateSettings({ maxHistoryCount: Number(event.target.value) })}
+            />
+          </div>
         </label>
 
         <label className='settings-field'>
-          <span>最短保留天数</span>
-          <small>这个时间窗口内的记录不会被自动清理。</small>
-          <input
-            type='number'
-            min='30'
-            max='365'
-            step='1'
-            value={settings.minRetentionDays}
-            onChange={(event) => updateSettings({ minRetentionDays: Number(event.target.value) })}
-          />
+          <div className='settings-field-copy'>
+            <span>最短保留天数</span>
+            <small>窗口内不自动清理</small>
+          </div>
+          <div className='settings-field-control'>
+            <input
+              type='number'
+              min='30'
+              max='365'
+              step='1'
+              value={settings.minRetentionDays}
+              onChange={(event) => updateSettings({ minRetentionDays: Number(event.target.value) })}
+            />
+          </div>
         </label>
 
         <label className='settings-field'>
-          <span>图片最大高度</span>
-          <small>列表中的图片缩略图会按这个高度限制显示。</small>
-          <input
-            type='number'
-            min='80'
-            max='480'
-            step='10'
-            value={settings.imagePreviewMaxHeight}
-            onChange={(event) => updateSettings({ imagePreviewMaxHeight: Number(event.target.value) })}
-          />
+          <div className='settings-field-copy'>
+            <span>图片最大高度</span>
+            <small>列表缩略图上限</small>
+          </div>
+          <div className='settings-field-control'>
+            <input
+              type='number'
+              min='80'
+              max='480'
+              step='10'
+              value={settings.imagePreviewMaxHeight}
+              onChange={(event) => updateSettings({ imagePreviewMaxHeight: Number(event.target.value) })}
+            />
+          </div>
         </label>
 
         <label className='settings-field'>
-          <span>长文本折叠行数</span>
-          <small>超过这个行数的文本会先折叠显示。</small>
-          <input
-            type='number'
-            min='3'
-            max='12'
-            step='1'
-            value={settings.textCollapsedLines}
-            onChange={(event) => updateSettings({ textCollapsedLines: Number(event.target.value) })}
-          />
+          <div className='settings-field-copy'>
+            <span>长文本折叠行数</span>
+            <small>超出时折叠显示</small>
+          </div>
+          <div className='settings-field-control'>
+            <input
+              type='number'
+              min='3'
+              max='12'
+              step='1'
+              value={settings.textCollapsedLines}
+              onChange={(event) => updateSettings({ textCollapsedLines: Number(event.target.value) })}
+            />
+          </div>
         </label>
 
         <label className='settings-toggle'>
-          <div>
+          <div className='settings-field-copy'>
             <span>启用监听</span>
             <small>{getListenerStatusLabel(listenerStatus)}</small>
           </div>
@@ -186,19 +204,27 @@ export default function SettingsPage ({ onBack }) {
         </label>
 
         <div className='settings-field settings-status-card'>
-          <span>监听模式</span>
-          <div className={`settings-status-badge settings-status-badge-${getListenerStatusTone(listenerStatus)}`}>
-            {getListenerModeText(listenerStatus)}
+          <div className='settings-field-copy'>
+            <span>监听模式</span>
+            <small>{getListenerStatusDescription(listenerStatus)}</small>
           </div>
-          <small>{getListenerStatusDescription(listenerStatus)}</small>
+          <div className='settings-field-control'>
+            <div className={`settings-status-badge settings-status-badge-${getListenerStatusTone(listenerStatus)}`}>
+              {getListenerModeText(listenerStatus)}
+            </div>
+          </div>
         </div>
 
         <div className='settings-field settings-status-card'>
-          <span>历史清理策略</span>
-          <div className='settings-status-badge settings-status-badge-muted'>
-            自动生效
+          <div className='settings-field-copy'>
+            <span>历史清理策略</span>
+            <small>{historyPolicySummary}</small>
           </div>
-          <small>{historyPolicySummary}</small>
+          <div className='settings-field-control'>
+            <div className='settings-status-badge settings-status-badge-muted'>
+              自动生效
+            </div>
+          </div>
         </div>
       </section>
     </div>

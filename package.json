@@ -6,9 +6,11 @@
   },
   "dependencies": {
     "@icon-park/react": "^1.4.2",
+    "linkify-it": "^5.0.0",
     "pinyin-pro": "^3.28.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "segmentit": "^2.0.3"
   },
   "devDependencies": {
     "@types/react": "^19.0.8",

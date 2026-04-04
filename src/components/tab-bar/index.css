@@ -1,9 +1,9 @@
 .tab-bar {
   display: flex;
-  gap: 22px;
+  gap: 16px;
   width: 100%;
   margin: 0;
-  padding: 0 12px;
+  padding: 0 10px;
   overflow: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -16,11 +16,11 @@
 .tab-bar-button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   justify-content: center;
   flex: 0 0 auto;
   min-width: auto;
-  padding: 8px 0 12px;
+  padding: 6px 0 9px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -85,11 +85,11 @@
 
 @media (max-width: 760px) {
   .tab-bar {
-    gap: 16px;
-    padding: 0 8px;
+    gap: 12px;
+    padding: 0 6px;
   }
 
   .tab-bar-button {
-    padding: 8px 0 10px;
+    padding: 6px 0 8px;
   }
 }

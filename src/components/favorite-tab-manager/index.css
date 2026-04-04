@@ -3,8 +3,9 @@
   inset: 0;
   display: grid;
   place-items: center;
-  padding: 16px;
+  padding: 12px;
   background: var(--overlay);
+  backdrop-filter: blur(4px);
   z-index: 20;
 }
 
@@ -13,52 +14,72 @@
   max-height: min(720px, calc(100vh - 32px));
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
-  gap: 14px;
-  padding: 20px;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--panel-border);
   border-radius: var(--radius-xl);
   background: var(--panel-bg);
-  box-shadow: var(--panel-shadow-hover);
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.16);
   overflow: hidden;
 }
 
 .favorite-tab-manager-header,
-.favorite-tab-manager-create,
 .favorite-tab-manager-footer,
-.favorite-tab-manager-item {
+.favorite-tab-manager-item-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .favorite-tab-manager-header {
   justify-content: space-between;
 }
 
+.favorite-tab-manager-header-copy {
+  min-width: 0;
+}
+
 .favorite-tab-manager-header h3 {
   margin: 0;
-  font-size: 20px;
-  line-height: 1.2;
+  font-size: 18px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
 }
 
 .favorite-tab-manager-header p,
 .favorite-tab-manager-footer span {
   margin: 4px 0 0;
   color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .favorite-tab-manager-create {
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.favorite-tab-manager-section-label {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
 }
 
 .favorite-tab-manager-create-field {
-  flex: 1 1 auto;
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
-  padding: 0 12px;
+  padding: 0 10px;
   border: 1px solid var(--input-border);
   border-radius: var(--radius-md);
   background: var(--input-bg);
@@ -72,7 +93,8 @@
   border: 0;
   background: transparent;
   color: var(--text-primary);
-  padding: 11px 0;
+  padding: 8px 0;
+  font: inherit;
 }
 
 .favorite-tab-manager-list {
@@ -80,18 +102,61 @@
   overflow: auto;
   display: grid;
   align-content: start;
-  gap: 8px;
+  gap: 4px;
+  padding-right: 1px;
 }
 
 .favorite-tab-manager-item {
-  padding: 10px 12px;
-  border: 1px solid var(--panel-border);
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--list-item-border);
   border-radius: var(--radius-lg);
-  background: var(--surface);
+  background: var(--list-item-bg);
+  transition:
+    background-color var(--transition-base),
+    border-color var(--transition-base),
+    box-shadow var(--transition-base);
+}
+
+.favorite-tab-manager-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 7px;
+  bottom: 7px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
 }
 
 .favorite-tab-manager-item.is-active {
-  border-color: var(--accent-soft-strong);
+  background: var(--surface);
+  border-color: rgba(59, 130, 246, 0.72);
+  box-shadow:
+    0 0 0 1px rgba(96, 165, 250, 0.42),
+    0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.favorite-tab-manager-item.is-active::before {
+  opacity: 1;
+}
+
+.favorite-tab-manager-item-main {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.favorite-tab-manager-item-actions {
+  flex: none;
 }
 
 .favorite-tab-manager-tab-chip,
@@ -100,21 +165,22 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  height: 28px;
-  padding: 0 10px;
+  height: 24px;
+  padding: 0 8px;
   border-radius: 999px;
   background: var(--surface-muted);
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
 }
 
 .favorite-tab-manager-tab-chip {
   border: 1px solid var(--panel-border);
+  color: var(--text-primary);
 }
 
 .favorite-tab-manager-count {
-  min-width: 32px;
+  min-width: 26px;
 }
 
 .favorite-tab-manager-primary,
@@ -128,8 +194,10 @@
   border: 1px solid var(--panel-border);
   background: var(--surface);
   color: var(--text-secondary);
-  height: 38px;
-  padding: 0 12px;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
 }
 
@@ -140,8 +208,34 @@
 }
 
 .favorite-tab-manager-icon-button {
-  width: 38px;
+  position: relative;
+  width: 30px;
   padding: 0;
+}
+
+.favorite-tab-manager-icon-button::after {
+  content: attr(aria-label);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translate(-50%, 4px);
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.92);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.favorite-tab-manager-icon-button:hover::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .favorite-tab-manager-icon-button.danger {
@@ -150,19 +244,39 @@
 
 .favorite-tab-manager-footer {
   justify-content: space-between;
+  gap: 12px;
+  padding-top: 2px;
 }
 
 @media (max-width: 760px) {
   .favorite-tab-manager {
     width: calc(100vw - 16px);
     max-height: calc(100vh - 16px);
-    padding: 16px;
+    padding: 14px;
   }
 
   .favorite-tab-manager-create,
   .favorite-tab-manager-footer,
-  .favorite-tab-manager-item {
+  .favorite-tab-manager-item,
+  .favorite-tab-manager-item-main {
     flex-wrap: wrap;
+  }
+
+  .favorite-tab-manager-create {
+    grid-template-columns: 1fr;
+  }
+
+  .favorite-tab-manager-item {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .favorite-tab-manager-item-main {
+    grid-template-columns: 1fr;
+  }
+
+  .favorite-tab-manager-item-actions {
+    justify-content: flex-start;
   }
 
   .favorite-tab-manager-create-field,

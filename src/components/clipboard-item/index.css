@@ -1,236 +1,200 @@
 .clipboard-item {
-  position: relative;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
-  align-items: start;
-  gap: 10px;
-  padding: 12px 14px;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--list-item-border);
-  background: var(--list-item-bg);
-  cursor: default;
-  transition:
-    background-color var(--transition-base),
-    border-color var(--transition-base),
-    opacity var(--transition-fast);
-  scroll-margin-top: 8px;
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: start;
+    gap: 7px;
+    padding: 7px 9px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--list-item-border);
+    background: var(--list-item-bg);
+    cursor: default;
+    transition:
+        background-color var(--transition-base),
+        border-color var(--transition-base),
+        box-shadow var(--transition-base);
+    scroll-margin-top: 6px;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .clipboard-item::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 12px;
-  bottom: 12px;
-  width: 3px;
-  border-radius: 999px;
-  background: var(--accent);
-  opacity: 0;
-  transition: opacity var(--transition-fast);
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 7px;
+    bottom: 7px;
+    width: 3px;
+    border-radius: 999px;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
 }
 
 .clipboard-item:hover {
-  background: var(--list-item-hover-bg);
-  border-color: var(--panel-border);
+    background: var(--list-item-hover-bg);
+    border-color: var(--panel-border);
 }
 
-.clipboard-item.is-selected {
-  background: var(--accent-soft);
-  border-color: rgba(59, 130, 246, 0.72);
+.clipboard-item.is-selected,
+.clipboard-item.is-multi-selected {
+    background: var(--surface);
+    border-color: rgba(59, 130, 246, 0.72);
+    box-shadow:
+        0 0 0 1px rgba(96, 165, 250, 0.42),
+        0 4px 12px rgba(15, 23, 42, 0.06);
 }
 
-.clipboard-item.is-selected::before {
-  opacity: 1;
+.clipboard-item.is-selected::before,
+.clipboard-item.is-multi-selected::before {
+    opacity: 1;
 }
 
 .clipboard-item-content {
-  min-width: 0;
+    min-width: 0;
 }
 
 .clipboard-item-body {
-  color: var(--text-primary);
-  font-size: 13px;
-  line-height: 1.4;
-  font-weight: 500;
-  overflow: hidden;
-  min-width: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: var(--clipboard-item-lines, 2);
+    color: var(--text-primary);
+    font-size: 13px;
+    line-height: 1.35;
+    font-weight: 500;
+    overflow: hidden;
+    min-width: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: var(--clipboard-item-lines, 2);
 }
 
 .clipboard-item-image {
-  display: block;
-  max-width: 100%;
-  max-height: var(--clipboard-image-max-height, 160px);
-  width: auto;
-  height: auto;
-  border-radius: 12px;
-  object-fit: contain;
+    display: block;
+    max-width: 100%;
+    max-height: var(--clipboard-image-max-height, 160px);
+    width: auto;
+    height: auto;
+    border-radius: var(--radius-md);
+    object-fit: contain;
 }
 
 .clipboard-item-image-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 72px;
-  max-height: var(--clipboard-image-max-height, 160px);
-  padding: 2px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 64px;
+    max-height: var(--clipboard-image-max-height, 160px);
+    padding: 1px 0;
 }
 
 .clipboard-item-image-fallback {
-  color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.clipboard-item-image-placeholder {
-  width: 100%;
-  min-height: 72px;
-  height: var(--clipboard-image-fallback-height, 120px);
-  border-radius: 12px;
-  border: 1px solid rgba(203, 213, 225, 0.56);
-  background:
-    linear-gradient(180deg, rgba(148, 163, 184, 0.14), rgba(148, 163, 184, 0.08));
-}
-
-.clipboard-item-image-fallback-text {
-  margin-top: 6px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.5;
 }
 
 .clipboard-item-body mark {
-  padding: 0 1px;
-  background: var(--accent-soft);
-  color: inherit;
-  border-radius: 4px;
+    padding: 0 1px;
+    background: var(--accent-soft);
+    color: inherit;
+    border-radius: 4px;
+}
+
+.clipboard-item *::selection {
+    background: transparent;
+    color: inherit;
 }
 
 .clipboard-item-time {
-  flex: none;
-  font-size: 11px;
-  line-height: 1;
-  color: var(--text-tertiary);
-  align-self: start;
-  padding-top: 2px;
-}
-
-.clipboard-item-favorite {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 52px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  font-size: 11px;
-  line-height: 1.2;
-  font-weight: 600;
-  align-self: start;
-}
-
-.clipboard-item-favorite-current-tab {
-  background: var(--accent-soft);
-  border-color: var(--accent-soft-strong);
-  color: var(--accent);
-}
-
-.clipboard-item-favorite-other-tab {
-  background: var(--surface);
-  border-color: var(--panel-border);
-  color: var(--text-secondary);
+    flex: none;
+    font-size: 11px;
+    line-height: 1;
+    color: var(--text-tertiary);
+    align-self: start;
+    padding-top: 1px;
 }
 
 .clipboard-item-type {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  flex: none;
-  color: var(--text-secondary);
-  align-self: start;
-  margin-top: 1px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex: none;
+    color: var(--text-secondary);
+    align-self: start;
+    margin-top: 1px;
+}
+
+.clipboard-item.is-favorited .clipboard-item-type {
+    color: var(--accent);
 }
 
 .clipboard-item-type > span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
 }
 
 .clipboard-item-type svg {
-  display: block;
+    display: block;
 }
 
 .clipboard-item.is-image {
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
-  grid-template-areas:
-    'type favorite time time'
-    'content content content content';
-  row-gap: 6px;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+        "type time time time"
+        "content content content content";
+    row-gap: 4px;
 }
 
 .clipboard-item.is-image .clipboard-item-type {
-  grid-area: type;
-  width: 18px;
-  height: 18px;
-  margin-top: 0;
+    grid-area: type;
+    width: 18px;
+    height: 18px;
+    margin-top: 0;
 }
 
 .clipboard-item.is-image .clipboard-item-content {
-  grid-area: content;
-}
-
-.clipboard-item.is-image .clipboard-item-favorite {
-  grid-area: favorite;
-  justify-self: end;
-  min-width: 46px;
-  padding: 2px 7px;
-  font-size: 10px;
+    grid-area: content;
 }
 
 .clipboard-item.is-image .clipboard-item-time {
-  grid-area: time;
-  justify-self: end;
-  font-size: 10px;
-  padding-top: 1px;
+    grid-area: time;
+    justify-self: end;
+    font-size: 10px;
+    padding-top: 1px;
 }
 
 @media (max-width: 760px) {
-  .clipboard-item {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-areas:
-      'type body time'
-      'type favorite favorite';
-    row-gap: 8px;
-  }
+    .clipboard-item {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-areas:
+            "type body time"
+            "type body body";
+        row-gap: 4px;
+    }
 
-  .clipboard-item-type {
-    grid-area: type;
-  }
+    .clipboard-item-type {
+        grid-area: type;
+    }
 
-  .clipboard-item-body {
-    grid-area: body;
-  }
+    .clipboard-item-body {
+        grid-area: body;
+    }
 
-  .clipboard-item-time {
-    grid-area: time;
-    justify-self: end;
-  }
+    .clipboard-item-time {
+        grid-area: time;
+        justify-self: end;
+    }
 
-  .clipboard-item-favorite {
-    grid-area: favorite;
-    justify-self: start;
-  }
-
-  .clipboard-item.is-image {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-areas:
-      'type favorite time'
-      'content content content';
-  }
+    .clipboard-item.is-image {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-areas:
+            "type time time"
+            "content content content";
+    }
 }

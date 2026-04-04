@@ -25,10 +25,10 @@
   --success-text: #166534;
   --overlay: rgba(15, 23, 42, 0.38);
   --focus-ring: rgba(37, 99, 235, 0.24);
-  --radius-sm: 10px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
   --app-font: 'Segoe UI Variable Text', 'Segoe UI Variable Display', 'PingFang SC', 'Microsoft YaHei UI', 'Noto Sans SC', sans-serif;
   --transition-fast: 160ms ease;
   --transition-base: 200ms ease;

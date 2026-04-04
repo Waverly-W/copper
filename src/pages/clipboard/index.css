@@ -3,6 +3,7 @@
   padding: 0;
   overflow: hidden;
   background: var(--bg);
+  position: relative;
 }
 
 .clipboard-pane {
@@ -10,13 +11,131 @@
   min-height: 0;
   display: grid;
   grid-template-rows: auto auto 1fr;
-  gap: 6px;
+  gap: 4px;
   background: var(--bg);
   overflow: hidden;
+}
+
+.clipboard-page .clipboard-list {
+  padding-bottom: 104px;
+  scroll-padding-bottom: 104px;
+}
+
+.clipboard-floating-toolbar {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 20;
+}
+
+.clipboard-floating-toolbar-button {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  line-height: 0;
+  border: 1px solid var(--panel-border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition:
+    transform var(--transition-fast),
+    border-color var(--transition-base),
+    background-color var(--transition-base),
+    box-shadow var(--transition-base),
+    color var(--transition-base);
+}
+
+.clipboard-floating-toolbar-button::after {
+  content: attr(aria-label);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  transform: translate(-50%, 4px);
+  padding: 6px 9px;
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.92);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.clipboard-toolbar-icon {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.clipboard-toolbar-icon :is(svg, span) {
+  display: block;
+}
+
+.clipboard-floating-toolbar-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--panel-border-strong);
+  background: var(--surface-muted);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.1);
+}
+
+.clipboard-floating-toolbar-button:hover:not(:disabled)::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.clipboard-floating-toolbar-button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.clipboard-floating-toolbar-button-primary {
+  border-color: transparent;
+  background: var(--accent);
+  color: #fff;
+}
+
+.clipboard-floating-toolbar-button-primary:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--accent-hover);
 }
 
 @media (max-width: 760px) {
   .clipboard-page {
     padding: 0;
+  }
+
+  .clipboard-page .clipboard-list {
+    padding-bottom: 96px;
+    scroll-padding-bottom: 96px;
+  }
+
+  .clipboard-floating-toolbar {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    transform: none;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .clipboard-floating-toolbar-button {
+    width: 42px;
+    height: 42px;
   }
 }
