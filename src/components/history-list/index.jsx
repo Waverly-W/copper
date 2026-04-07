@@ -10,7 +10,8 @@ const HistoryList = forwardRef(function HistoryList ({
   selectedIds,
   isActive,
   onSelectItem,
-  onPasteItem
+  onPasteItem,
+  onPreviewItem
 }, ref) {
   if (!items.length) {
     return (
@@ -34,6 +35,7 @@ const HistoryList = forwardRef(function HistoryList ({
           isMultiSelected={selectedIds.includes(item.id)}
           onClick={(event) => onSelectItem(item, index, event)}
           onDoubleClick={() => onPasteItem(item, index)}
+          onContextMenu={(event) => onPreviewItem?.(item, index, event)}
         />
       ))}
     </div>

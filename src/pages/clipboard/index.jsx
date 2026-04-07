@@ -6,6 +6,7 @@ import HistoryList from '../../components/history-list'
 import FavoriteList from '../../components/favorite-list'
 import FavoriteEditor from '../../components/favorite-editor'
 import FavoriteTabManager from '../../components/favorite-tab-manager'
+import PreviewModal from '../../components/preview-modal'
 import TextAnalysisModal from '../../components/text-analysis-modal'
 import TabBar from '../../components/tab-bar'
 import {
@@ -146,6 +147,7 @@ export default function ClipboardPage ({ onOpenSettings }) {
   const [favoriteDraft, setFavoriteDraft] = useState(null)
   const [isManagingTabs, setIsManagingTabs] = useState(false)
   const [isAnalyzingText, setIsAnalyzingText] = useState(false)
+  const [previewDraft, setPreviewDraft] = useState(null)
   const [textAnalysisDraft, setTextAnalysisDraft] = useState(null)
   const [activeHistoryTypeTabId, setActiveHistoryTypeTabId] = useState('all')
   const [selectedIdsByPane, setSelectedIdsByPane] = useState({ history: [], favorite: [] })
@@ -248,6 +250,23 @@ export default function ClipboardPage ({ onOpenSettings }) {
     if (pasteClipboardItem(item)) {
       notifyActionResult('已粘贴回上一个窗口。')
     }
+  }
+
+  const handlePreviewItem = (item, index, pane = activePane, event) => {
+    event?.preventDefault?.()
+    if (!item || (item.type !== 'text' && item.type !== 'html' && item.type !== 'image')) return
+
+    resetMultiSelection()
+
+    if (pane === 'history') {
+      setActivePane('history')
+      setSelectedIndex('history', index)
+    } else {
+      setActivePane('favorite')
+      setSelectedIndex('favorite', index)
+    }
+
+    setPreviewDraft(item)
   }
 
   const handleDeleteCurrentItem = () => {
@@ -766,6 +785,7 @@ export default function ClipboardPage ({ onOpenSettings }) {
               isActive={activePane === 'history'}
               onSelectItem={(item, index, event) => handleSelectItem(item, index, 'history', event)}
               onPasteItem={(item, index) => handlePasteItem(item, index, 'history')}
+              onPreviewItem={(item, index, event) => handlePreviewItem(item, index, 'history', event)}
             />
           </section>
         )}
@@ -801,6 +821,7 @@ export default function ClipboardPage ({ onOpenSettings }) {
               isActive={activePane === 'favorite'}
               onSelectItem={(item, index, event) => handleSelectItem(item, index, 'favorite', event)}
               onPasteItem={(item, index) => handlePasteItem(item, index, 'favorite')}
+              onPreviewItem={(item, index, event) => handlePreviewItem(item, index, 'favorite', event)}
             />
           </section>
         )}
@@ -839,7 +860,15 @@ export default function ClipboardPage ({ onOpenSettings }) {
             onClose={() => setTextAnalysisDraft(null)}
             onCopyItems={handleCopyAnalysisItems}
           />
-          )
+        )
+        : null}
+      {previewDraft
+        ? (
+          <PreviewModal
+            item={previewDraft}
+            onClose={() => setPreviewDraft(null)}
+          />
+        )
         : null}
       <div className='clipboard-floating-toolbar' aria-label='当前选中项操作'>
         <button

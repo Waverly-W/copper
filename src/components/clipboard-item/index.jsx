@@ -97,6 +97,7 @@ export default function ClipboardItem({
   isMultiSelected,
   onClick,
   onDoubleClick,
+  onContextMenu,
 }) {
   const itemRef = useRef(null);
   const { settings } = useSettingsStore();
@@ -120,12 +121,27 @@ export default function ClipboardItem({
     });
   }, [isSelected]);
 
+  const handleContextMenu = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onContextMenu?.(event);
+  };
+
+  const handleMouseDown = (event) => {
+    if (event.button === 2) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  };
+
   return (
     <article
       ref={itemRef}
       className={`clipboard-item ${isSelected ? "is-selected" : ""} ${isMultiSelected ? "is-multi-selected" : ""} ${isImageItem ? "is-image" : ""} ${isFavorited ? "is-favorited" : ""}`}
+      onMouseDown={handleMouseDown}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
+      onContextMenu={handleContextMenu}
     >
       <span className="clipboard-item-type" aria-label={item.typeLabel}>
         <TypeIcon
@@ -148,6 +164,8 @@ export default function ClipboardItem({
                 className="clipboard-item-image"
                 src={imageDataUrl}
                 alt={item.title || "Clipboard image"}
+                onMouseDown={handleMouseDown}
+                onContextMenu={handleContextMenu}
               />
             </div>
           ) : (
