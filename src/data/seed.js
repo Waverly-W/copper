@@ -48,9 +48,9 @@ export const SEED_HISTORY_ITEMS = decorateHistoryItems([
   {
     id: 'history-5',
     type: 'text',
-    title: 'Support pinyin search, fuzzy matching, and highlighted hits.',
-    contentText: 'Support pinyin search, fuzzy matching, and highlighted hits.',
-    searchText: 'support pinyin search fuzzy matching highlighted hits',
+    title: 'Support continuous string search and highlighted hits.',
+    contentText: 'Support continuous string search and highlighted hits.',
+    searchText: 'support continuous string search highlighted hits',
     copyCount: 5,
     createdAt: Date.now() - 1000 * 60 * 60 * 4,
     updatedAt: Date.now() - 1000 * 60 * 60 * 2,

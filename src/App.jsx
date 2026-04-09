@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import ClipboardPage from './pages/clipboard'
 import SettingsPage from './pages/settings'
 import { usePluginLifecycle } from './app/plugin-lifecycle'
@@ -11,12 +11,17 @@ export default function App () {
   const { route, enterAction, navigateToRoute } = usePluginLifecycle()
   const { settings } = useSettingsStore()
   const { query, setQuery } = useUIStore()
+  const queryRef = useRef(query)
   const {
     pruneHistory,
     recordCapturedText,
     recordCapturedImage,
     recordCapturedFiles
   } = useHistoryStore()
+
+  useEffect(() => {
+    queryRef.current = query
+  }, [query])
 
   const themeClassName = settings.themeMode === 'system'
     ? 'theme-system'
@@ -53,20 +58,38 @@ export default function App () {
       return
     }
 
-    window.utools.setSubInput?.(({ text }) => {
-      setQuery(text || '')
-    }, '输入关键字、拼音或文件名', true)
+    const restoreSubInput = () => {
+      window.utools.setSubInput?.(({ text }) => {
+        setQuery(text || '')
+      }, '输入关键字或文件名', true)
+
+      if (typeof window.utools?.setSubInputValue === 'function') {
+        window.utools.setSubInputValue(queryRef.current || '')
+      }
+    }
+
+    restoreSubInput()
+
+    const handleRestore = () => {
+      if (route !== 'clipboard') return
+      restoreSubInput()
+    }
+
+    window.addEventListener('focus', handleRestore)
+    document.addEventListener('visibilitychange', handleRestore)
 
     return () => {
+      window.removeEventListener('focus', handleRestore)
+      document.removeEventListener('visibilitychange', handleRestore)
       window.utools.removeSubInput?.()
     }
-  }, [route, setQuery])
+  }, [enterAction, route, setQuery])
 
   useEffect(() => {
     if (route !== 'clipboard') return
     if (typeof window.utools?.setSubInputValue !== 'function') return
     window.utools.setSubInputValue(query || '')
-  }, [query, route])
+  }, [enterAction, query, route])
 
   return (
     <div className={`app-shell ${themeClassName}`}>

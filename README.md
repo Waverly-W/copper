@@ -2,7 +2,7 @@
 
 `copper` 是一个基于 uTools 的个人剪贴板工作台，目标是替代官方剪贴板插件，围绕「历史记录 + 收藏沉淀 + 键盘优先 + 本地优先」构建更高频的个人工作流。
 
-当前项目已经实现了文本、图片、文件的基础采集和回填链路，支持左右分栏的历史区与收藏区，支持收藏 Tab、键盘导航，以及基于拼音与模糊匹配的本地搜索。
+当前项目已经实现了文本、图片、文件的基础采集和回填链路，支持左右分栏的历史区与收藏区，支持收藏 Tab、键盘导航，以及基于连续字符串匹配的本地搜索。
 
 ## 当前能力
 
@@ -17,8 +17,8 @@
   - 删除时遵循多 Tab 语义
 - 搜索
   - 使用 uTools 官方子输入框作为搜索入口
-  - 历史和收藏分别异步返回结果
-  - 支持中文拼音、首字母、前缀、包含和子序列模糊匹配
+  - 历史和收藏分别返回结果
+  - 支持连续字符串、前缀和包含匹配
   - 按匹配度和时间排序
 - 操作
   - 单击复制
@@ -37,7 +37,6 @@
 - Vite 6
 - uTools Plugin API
 - Electron clipboard
-- `pinyin-pro` 用于拼音搜索
 
 ## 目录结构
 
@@ -135,7 +134,7 @@ chmod +x public/clipboard-event-handler-mac
 ### 搜索
 
 - 搜索输入来自 uTools `setSubInput`，不使用页面内原生输入框。
-- 搜索引擎按需加载，避免把拼音依赖全部塞进首屏主包。
+- 搜索引擎按需处理，避免把不必要的搜索逻辑塞进首屏主包。
 - 搜索实现见：
   - [src/services/search/use-search-results.js](src/services/search/use-search-results.js)
   - [src/services/search/search-engine.js](src/services/search/search-engine.js)
@@ -158,7 +157,7 @@ chmod +x public/clipboard-event-handler-mac
 - 图片复制后是否能再次复制和粘贴
 - 资源管理器复制文件 / 多文件是否能进历史
 - 历史与收藏是否各自独立滚动
-- 拼音搜索、文件名搜索、英文模糊搜索是否返回正确结果
+- 连续字符串搜索、文件名搜索、英文包含搜索是否返回正确结果
 - 收藏加入、跨 Tab 引用、删除语义是否符合预期
 
 ## 参考文档
