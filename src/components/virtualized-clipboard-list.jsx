@@ -76,6 +76,7 @@ const VirtualizedClipboardList = forwardRef(function VirtualizedClipboardList ({
   selectedIndex,
   selectedIds = [],
   isActive,
+  selectionScrollMode = 'programmatic',
   onFocus,
   onSelectItem,
   onPasteItem,
@@ -180,6 +181,7 @@ const VirtualizedClipboardList = forwardRef(function VirtualizedClipboardList ({
     if (!items.length) return
     if (selectedIndex < 0 || selectedIndex >= items.length) return
     if (previousSelectedIndex === selectedIndex) return
+    if (selectionScrollMode === 'pointer') return
 
     const container = containerRef.current
     if (!container) return
@@ -199,7 +201,7 @@ const VirtualizedClipboardList = forwardRef(function VirtualizedClipboardList ({
       container.scrollTop = itemBottom - container.clientHeight + LIST_PADDING_PX
       setScrollTop(container.scrollTop)
     }
-  }, [isActive, items.length, offsets, selectedIndex, sizes])
+  }, [isActive, items.length, offsets, selectedIndex, selectionScrollMode, sizes])
 
   const handleScroll = (event) => {
     pendingScrollTopRef.current = event.currentTarget.scrollTop

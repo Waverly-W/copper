@@ -153,6 +153,7 @@ export default function ClipboardPage ({ onOpenSettings }) {
   const [selectedIdsByPane, setSelectedIdsByPane] = useState({ history: [], favorite: [] })
   const lastEnterAtRef = useRef(0)
   const selectionAnchorRef = useRef({ history: null, favorite: null })
+  const selectionScrollModeRef = useRef('programmatic')
   const {
     query,
     activePane,
@@ -478,6 +479,7 @@ export default function ClipboardPage ({ onOpenSettings }) {
     const currentSelectedIds = selectedIdsByPane[pane]
     const currentIndex = pane === 'history' ? selectedHistoryIndex : selectedFavoriteIndex
 
+    selectionScrollModeRef.current = 'pointer'
     setSelectedIndex(pane, index)
 
     if (shiftPressed && visibleItems.length) {
@@ -528,6 +530,7 @@ export default function ClipboardPage ({ onOpenSettings }) {
     const nextItem = items[nextIndex]
     if (!nextItem) return
 
+    selectionScrollModeRef.current = 'keyboard'
     selectionAnchorRef.current[pane] = nextIndex
     setSelectedIndex(pane, nextIndex)
     updatePaneSelection(pane, [nextItem.id])
@@ -568,6 +571,7 @@ export default function ClipboardPage ({ onOpenSettings }) {
   useEffect(() => {
     if (!filteredHistoryItems.length) return
     if (selectedHistoryIndex < filteredHistoryItems.length) return
+    selectionScrollModeRef.current = 'programmatic'
     setSelectedIndex('history', filteredHistoryItems.length - 1)
   }, [filteredHistoryItems.length, selectedHistoryIndex, setSelectedIndex])
 
@@ -582,6 +586,7 @@ export default function ClipboardPage ({ onOpenSettings }) {
   useEffect(() => {
     if (!filteredFavoriteItems.length) return
     if (selectedFavoriteIndex < filteredFavoriteItems.length) return
+    selectionScrollModeRef.current = 'programmatic'
     setSelectedIndex('favorite', filteredFavoriteItems.length - 1)
   }, [filteredFavoriteItems.length, selectedFavoriteIndex, setSelectedIndex])
 
@@ -783,6 +788,7 @@ export default function ClipboardPage ({ onOpenSettings }) {
               selectedIndex={selectedHistoryIndex}
               selectedIds={selectedIdsByPane.history}
               isActive={activePane === 'history'}
+              selectionScrollMode={selectionScrollModeRef.current}
               onSelectItem={(item, index, event) => handleSelectItem(item, index, 'history', event)}
               onPasteItem={(item, index) => handlePasteItem(item, index, 'history')}
               onPreviewItem={(item, index, event) => handlePreviewItem(item, index, 'history', event)}
@@ -819,6 +825,7 @@ export default function ClipboardPage ({ onOpenSettings }) {
               selectedIndex={selectedFavoriteIndex}
               selectedIds={selectedIdsByPane.favorite}
               isActive={activePane === 'favorite'}
+              selectionScrollMode={selectionScrollModeRef.current}
               onSelectItem={(item, index, event) => handleSelectItem(item, index, 'favorite', event)}
               onPasteItem={(item, index) => handlePasteItem(item, index, 'favorite')}
               onPreviewItem={(item, index, event) => handlePreviewItem(item, index, 'favorite', event)}

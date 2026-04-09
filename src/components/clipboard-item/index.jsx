@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef } from 'react'
+import { memo, useMemo } from 'react'
 import { FileTxt, FolderClose, Pic } from '@icon-park/react'
 import './index.css'
 
@@ -121,7 +121,6 @@ function ClipboardItem ({
   onDoubleClick,
   onContextMenu
 }) {
-  const itemRef = useRef(null)
   const TypeIcon = getTypeIconComponent(item.type)
   const isImageItem = item.type === 'image'
   const isFavorited = Boolean(item.favoriteStatus)
@@ -143,14 +142,6 @@ function ClipboardItem ({
     return nextDataUrl
   }, [isImageItem, item.imagePath])
 
-  useEffect(() => {
-    if (!isSelected) return
-    itemRef.current?.scrollIntoView({
-      block: 'nearest',
-      inline: 'nearest'
-    })
-  }, [isSelected])
-
   const handleContextMenu = (event) => {
     event.preventDefault()
     event.stopPropagation()
@@ -166,7 +157,6 @@ function ClipboardItem ({
 
   return (
     <article
-      ref={itemRef}
       className={`clipboard-item ${isSelected ? 'is-selected' : ''} ${isMultiSelected ? 'is-multi-selected' : ''} ${isImageItem ? 'is-image' : ''} ${isFavorited ? 'is-favorited' : ''}`}
       onMouseDown={handleMouseDown}
       onClick={onClick}

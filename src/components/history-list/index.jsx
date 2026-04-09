@@ -1,6 +1,5 @@
 import { forwardRef } from 'react'
 import VirtualizedClipboardList from '../virtualized-clipboard-list'
-import './index.css'
 
 const HistoryList = forwardRef(function HistoryList ({
   items,
@@ -8,6 +7,7 @@ const HistoryList = forwardRef(function HistoryList ({
   selectedIndex,
   selectedIds,
   isActive,
+  selectionScrollMode,
   onSelectItem,
   onPasteItem,
   onPreviewItem
@@ -20,6 +20,7 @@ const HistoryList = forwardRef(function HistoryList ({
       selectedIndex={selectedIndex}
       selectedIds={selectedIds}
       isActive={isActive}
+      selectionScrollMode={selectionScrollMode}
       onSelectItem={onSelectItem}
       onPasteItem={onPasteItem}
       onPreviewItem={onPreviewItem}
