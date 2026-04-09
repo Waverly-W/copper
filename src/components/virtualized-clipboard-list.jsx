@@ -74,10 +74,12 @@ const VirtualizedClipboardList = forwardRef(function VirtualizedClipboardList ({
   items,
   query,
   selectedIndex,
+  selectedIds = [],
   isActive,
   onFocus,
-  onCopyItem,
+  onSelectItem,
   onPasteItem,
+  onPreviewItem,
   emptyTitle,
   emptyDescription
 }, ref) {
@@ -88,6 +90,7 @@ const VirtualizedClipboardList = forwardRef(function VirtualizedClipboardList ({
   const pendingScrollTopRef = useRef(0)
   const scrollFrameRef = useRef(0)
   const scrollIdleTimerRef = useRef(0)
+  const previousSelectedIndexRef = useRef(-1)
   const [viewportHeight, setViewportHeight] = useState(0)
   const [scrollTop, setScrollTop] = useState(0)
   const [measureVersion, setMeasureVersion] = useState(0)
@@ -167,11 +170,16 @@ const VirtualizedClipboardList = forwardRef(function VirtualizedClipboardList ({
   }, [offsets, scrollTop, sizes, viewportHeight])
 
   const visibleItems = items.slice(startIndex, endIndex + 1)
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds])
 
   useLayoutEffect(() => {
+    const previousSelectedIndex = previousSelectedIndexRef.current
+    previousSelectedIndexRef.current = selectedIndex
+
     if (!isActive) return
     if (!items.length) return
     if (selectedIndex < 0 || selectedIndex >= items.length) return
+    if (previousSelectedIndex === selectedIndex) return
 
     const container = containerRef.current
     if (!container) return
@@ -256,12 +264,13 @@ const VirtualizedClipboardList = forwardRef(function VirtualizedClipboardList ({
               query={query}
               top={LIST_PADDING_PX + offsets[itemIndex]}
               isSelected={isActive && selectedIndex === itemIndex}
-              allowImageLoading={!isScrolling}
+              isMultiSelected={selectedIdSet.has(item.id)}
               textCollapsedLines={settings.textCollapsedLines}
               imagePreviewMaxHeight={settings.imagePreviewMaxHeight}
               measureDispatcher={measureDispatcherRef}
-              onCopyItem={() => onCopyItem(item, itemIndex)}
+              onSelectItem={(event) => onSelectItem(item, itemIndex, event)}
               onPasteItem={() => onPasteItem(item, itemIndex)}
+              onPreviewItem={(event) => onPreviewItem?.(item, itemIndex, event)}
             />
           )
         })}
@@ -275,12 +284,13 @@ const MeasuredClipboardRow = memo(function MeasuredClipboardRow ({
   query,
   top,
   isSelected,
-  allowImageLoading,
+  isMultiSelected,
   textCollapsedLines,
   imagePreviewMaxHeight,
   measureDispatcher,
-  onCopyItem,
-  onPasteItem
+  onSelectItem,
+  onPasteItem,
+  onPreviewItem
 }) {
   const rowRef = useRef(null)
 
@@ -311,11 +321,12 @@ const MeasuredClipboardRow = memo(function MeasuredClipboardRow ({
         item={item}
         query={query}
         isSelected={isSelected}
-        allowImageLoading={allowImageLoading}
+        isMultiSelected={isMultiSelected}
         textCollapsedLines={textCollapsedLines}
         imagePreviewMaxHeight={imagePreviewMaxHeight}
-        onClick={onCopyItem}
+        onClick={onSelectItem}
         onDoubleClick={onPasteItem}
+        onContextMenu={onPreviewItem}
       />
     </div>
   )
@@ -326,7 +337,7 @@ function areMeasuredClipboardRowPropsEqual (previousProps, nextProps) {
     previousProps.query === nextProps.query &&
     previousProps.top === nextProps.top &&
     previousProps.isSelected === nextProps.isSelected &&
-    previousProps.allowImageLoading === nextProps.allowImageLoading &&
+    previousProps.isMultiSelected === nextProps.isMultiSelected &&
     previousProps.textCollapsedLines === nextProps.textCollapsedLines &&
     previousProps.imagePreviewMaxHeight === nextProps.imagePreviewMaxHeight
 }
