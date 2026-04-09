@@ -5,6 +5,7 @@ import './index.css'
 function getClipboardListenerStatusSnapshot () {
   return window.services?.getClipboardListenerStatus?.() || {
     mode: 'polling',
+    protocol: 'polling',
     available: false,
     listening: false,
     reason: 'unavailable',
@@ -31,6 +32,7 @@ function getListenerStatusLabel (listenerStatus) {
 }
 
 function getListenerModeText (listenerStatus) {
+  if (listenerStatus?.listening && listenerStatus?.protocol === 'native-capture') return '原生快照模式'
   if (listenerStatus?.listening) return '原生事件模式'
   if (listenerStatus?.mode === 'native') return '原生监听待启动'
   return '轮询回退模式'
@@ -38,11 +40,14 @@ function getListenerModeText (listenerStatus) {
 
 function getListenerStatusDescription (listenerStatus) {
   if (listenerStatus?.listening && listenerStatus?.targetPath) {
-    return `监听程序路径：${listenerStatus.targetPath}`
+    const protocolText = listenerStatus?.protocol === 'native-capture'
+      ? '原生进程直接抓取剪贴板快照'
+      : '原生进程发送剪贴板变更信号'
+    return `${protocolText}；监听程序路径：${listenerStatus.targetPath}`
   }
 
   if (listenerStatus?.reason === 'missing-binary') {
-    return '插件包内没有可执行监听器时，会自动回退到轮询；Windows 当前会优先尝试 PowerShell 监听脚本。'
+    return '插件包内没有可执行监听器时，会自动回退到轮询；Windows 当前仍优先尝试 PowerShell 监听脚本。'
   }
 
   if (listenerStatus?.reason === 'unsupported-platform') {

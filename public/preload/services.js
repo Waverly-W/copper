@@ -11,11 +11,19 @@ try {
 } catch {}
 
 const CLIPBOARD_CHANGE_SIGNAL = 'CLIPBOARD_CHANGE'
+const CLIPBOARD_CAPTURE_EVENT = 'clipboard_capture'
+const LISTENER_PROTOCOL_SIGNAL = 'native-signal'
+const LISTENER_PROTOCOL_CAPTURE = 'native-capture'
+const LISTENER_PROTOCOL_POLLING = 'polling'
+
 const clipboardChangeEmitter = new EventEmitter()
+const pendingClipboardCaptures = []
 let clipboardListenerProcess = null
 let clipboardListenerStdoutBuffer = ''
+let lastQueuedClipboardSignature = ''
 let clipboardListenerStatus = {
-  mode: 'polling',
+  mode: LISTENER_PROTOCOL_POLLING,
+  protocol: LISTENER_PROTOCOL_POLLING,
   available: false,
   listening: false,
   targetPath: '',
@@ -28,12 +36,20 @@ function ensureDirectory (directoryPath) {
   }
 }
 
+function getImageAssetsDirectory () {
+  const baseDir = window.utools?.getPath('userData') || window.utools?.getPath('downloads')
+  const directoryPath = path.join(baseDir, 'clipboard-plugin', 'assets', 'images')
+  ensureDirectory(directoryPath)
+  return directoryPath
+}
+
 function resolveClipboardListenerTarget () {
   if (process.platform === 'win32') {
     const exePath = path.resolve(__dirname, '..', 'clipboard-event-handler-win32.exe')
     if (fs.existsSync(exePath)) {
       return {
         mode: 'native',
+        protocol: LISTENER_PROTOCOL_SIGNAL,
         available: true,
         listening: Boolean(clipboardListenerProcess),
         targetPath: exePath,
@@ -47,6 +63,7 @@ function resolveClipboardListenerTarget () {
     if (fs.existsSync(scriptPath)) {
       return {
         mode: 'native',
+        protocol: LISTENER_PROTOCOL_SIGNAL,
         available: true,
         listening: Boolean(clipboardListenerProcess),
         targetPath: scriptPath,
@@ -65,7 +82,8 @@ function resolveClipboardListenerTarget () {
     }
 
     return {
-      mode: 'polling',
+      mode: LISTENER_PROTOCOL_POLLING,
+      protocol: LISTENER_PROTOCOL_POLLING,
       available: false,
       listening: false,
       targetPath: scriptPath,
@@ -83,7 +101,8 @@ function resolveClipboardListenerTarget () {
   const targetName = targetMap[process.platform]
   if (!targetName) {
     return {
-      mode: 'polling',
+      mode: LISTENER_PROTOCOL_POLLING,
+      protocol: LISTENER_PROTOCOL_POLLING,
       available: false,
       listening: false,
       targetPath: '',
@@ -96,7 +115,8 @@ function resolveClipboardListenerTarget () {
   const targetPath = path.resolve(__dirname, '..', targetName)
   if (!fs.existsSync(targetPath)) {
     return {
-      mode: 'polling',
+      mode: LISTENER_PROTOCOL_POLLING,
+      protocol: LISTENER_PROTOCOL_POLLING,
       available: false,
       listening: false,
       targetPath,
@@ -108,11 +128,19 @@ function resolveClipboardListenerTarget () {
 
   return {
     mode: 'native',
+    protocol: process.platform === 'darwin' ? LISTENER_PROTOCOL_CAPTURE : LISTENER_PROTOCOL_SIGNAL,
     available: true,
     listening: Boolean(clipboardListenerProcess),
     targetPath,
     command: targetPath,
-    args: [],
+    args: process.platform === 'darwin'
+      ? [
+          '--image-dir',
+          getImageAssetsDirectory(),
+          '--poll-interval-ms',
+          '40'
+        ]
+      : [],
     reason: ''
   }
 }
@@ -128,15 +156,113 @@ function emitClipboardChange () {
   clipboardChangeEmitter.emit('change')
 }
 
+function sanitizeFilePaths (paths) {
+  return paths
+    .map((filePath) => String(filePath || '').split('\u0000').join('').trim())
+    .filter(Boolean)
+    .filter((filePath) => fs.existsSync(filePath))
+}
+
+function isValidImageAsset (imageAsset) {
+  return Boolean(
+    imageAsset &&
+    imageAsset.assetId &&
+    imageAsset.imagePath &&
+    Number.isFinite(Number(imageAsset.width)) &&
+    Number.isFinite(Number(imageAsset.height))
+  )
+}
+
+function normalizeNativeClipboardCapture (capture) {
+  if (!capture || capture.event !== CLIPBOARD_CAPTURE_EVENT || typeof capture.signature !== 'string') {
+    return null
+  }
+
+  if (capture.kind === 'file') {
+    const filePaths = sanitizeFilePaths(Array.isArray(capture.filePaths) ? capture.filePaths : [])
+    if (!filePaths.length) return null
+
+    return {
+      kind: 'file',
+      signature: capture.signature,
+      filePaths
+    }
+  }
+
+  if (capture.kind === 'image') {
+    const imageAsset = capture.image
+    if (!isValidImageAsset(imageAsset) || !fs.existsSync(imageAsset.imagePath)) return null
+
+    return {
+      kind: 'image',
+      signature: capture.signature,
+      imageAsset: {
+        assetId: String(imageAsset.assetId),
+        imagePath: String(imageAsset.imagePath),
+        width: Number(imageAsset.width),
+        height: Number(imageAsset.height),
+        byteSize: Number(imageAsset.byteSize) || 0,
+        mimeType: String(imageAsset.mimeType || 'image/png')
+      }
+    }
+  }
+
+  if (capture.kind === 'text') {
+    const text = String(capture.text || '').trim()
+    if (!text) return null
+
+    return {
+      kind: 'text',
+      signature: capture.signature,
+      text
+    }
+  }
+
+  return null
+}
+
+function queueClipboardCapture (capture) {
+  if (!capture?.signature) return false
+  if (capture.signature === lastQueuedClipboardSignature) return false
+
+  pendingClipboardCaptures.push(capture)
+  lastQueuedClipboardSignature = capture.signature
+  emitClipboardChange()
+  return true
+}
+
 function handleClipboardListenerOutput (chunk) {
   clipboardListenerStdoutBuffer += chunk.toString()
   const lines = clipboardListenerStdoutBuffer.split(/\r?\n/)
   clipboardListenerStdoutBuffer = lines.pop() || ''
 
   lines.forEach((line) => {
-    if (line.trim() === CLIPBOARD_CHANGE_SIGNAL) {
-      emitClipboardChange()
+    const trimmedLine = line.trim()
+    if (!trimmedLine) return
+
+    if (trimmedLine === CLIPBOARD_CHANGE_SIGNAL) {
+      captureClipboardToQueue()
+      return
     }
+
+    try {
+      const parsedCapture = JSON.parse(trimmedLine)
+      const normalizedCapture = normalizeNativeClipboardCapture(parsedCapture)
+      if (normalizedCapture) {
+        queueClipboardCapture(normalizedCapture)
+      }
+    } catch {}
+  })
+}
+
+function handleClipboardListenerExit (reason) {
+  clipboardListenerProcess = null
+  setClipboardListenerStatus({
+    mode: LISTENER_PROTOCOL_POLLING,
+    protocol: LISTENER_PROTOCOL_POLLING,
+    available: false,
+    listening: false,
+    reason
   })
 }
 
@@ -151,6 +277,7 @@ function startClipboardNativeListener () {
   if (clipboardListenerProcess) {
     setClipboardListenerStatus({
       mode: 'native',
+      protocol: resolvedTarget.protocol,
       available: true,
       listening: true,
       reason: ''
@@ -181,27 +308,16 @@ function startClipboardNativeListener () {
 
     clipboardListenerProcess.on('error', (error) => {
       console.warn('[copper] native clipboard listener error', error)
-      clipboardListenerProcess = null
-      setClipboardListenerStatus({
-        mode: 'polling',
-        available: false,
-        listening: false,
-        reason: 'listener-error'
-      })
+      handleClipboardListenerExit('listener-error')
     })
 
     clipboardListenerProcess.on('exit', () => {
-      clipboardListenerProcess = null
-      setClipboardListenerStatus({
-        mode: 'polling',
-        available: false,
-        listening: false,
-        reason: 'listener-exit'
-      })
+      handleClipboardListenerExit('listener-exit')
     })
 
     setClipboardListenerStatus({
       mode: 'native',
+      protocol: resolvedTarget.protocol,
       available: true,
       listening: true,
       targetPath: resolvedTarget.targetPath,
@@ -211,7 +327,8 @@ function startClipboardNativeListener () {
     console.warn('[copper] failed to start native clipboard listener', error)
     clipboardListenerProcess = null
     setClipboardListenerStatus({
-      mode: 'polling',
+      mode: LISTENER_PROTOCOL_POLLING,
+      protocol: LISTENER_PROTOCOL_POLLING,
       available: false,
       listening: false,
       targetPath: resolvedTarget.targetPath,
@@ -230,17 +347,11 @@ function stopClipboardNativeListenerIfIdle () {
   clipboardListenerProcess = null
   setClipboardListenerStatus({
     mode: 'native',
+    protocol: clipboardListenerStatus.protocol,
     available: true,
     listening: false,
     reason: ''
   })
-}
-
-function getImageAssetsDirectory () {
-  const baseDir = window.utools?.getPath('userData') || window.utools?.getPath('downloads')
-  const directoryPath = path.join(baseDir, 'clipboard-plugin', 'assets', 'images')
-  ensureDirectory(directoryPath)
-  return directoryPath
 }
 
 function getClipboardImageSnapshot () {
@@ -248,9 +359,14 @@ function getClipboardImageSnapshot () {
   const image = clipboard.readImage()
   if (!image || image.isEmpty()) return null
 
+  const bitmapBuffer = typeof image.toBitmap === 'function'
+    ? image.toBitmap()
+    : null
+
   return {
     image,
-    pngBuffer: image.toPNG()
+    pngBuffer: image.toPNG(),
+    bitmapBuffer: bitmapBuffer?.length ? bitmapBuffer : null
   }
 }
 
@@ -262,24 +378,17 @@ function getMimeTypeFromExtension (filePath) {
   return 'application/octet-stream'
 }
 
-function sanitizeFilePaths (paths) {
-  return paths
-    .map((filePath) => filePath.replace(/\u0000/g, '').trim())
-    .filter(Boolean)
-    .filter((filePath) => fs.existsSync(filePath))
-}
-
 function normalizeCopiedFileEntry (entry) {
   if (!entry || typeof entry !== 'object') return null
 
-  const filePath = String(entry.path || '').replace(/\u0000/g, '').trim()
-  if (!filePath || !fs.existsSync(filePath)) return null
+  const normalizedFilePath = String(entry.path || '').split('\u0000').join('').trim()
+  if (!normalizedFilePath || !fs.existsSync(normalizedFilePath)) return null
 
   return {
     isFile: Boolean(entry.isFile),
     isDirectory: Boolean(entry.isDirectory ?? entry.isDiractory),
-    name: String(entry.name || path.basename(filePath)),
-    path: filePath
+    name: String(entry.name || path.basename(normalizedFilePath)),
+    path: normalizedFilePath
   }
 }
 
@@ -294,7 +403,7 @@ function readUtoolsCopiedFiles () {
 
 function normalizeUriListPath (value) {
   const normalizedValue = value
-    .replace(/\u0000/g, '')
+    .split('\u0000').join('')
     .replace(/^\uFEFF/, '')
     .trim()
   if (!normalizedValue) return ''
@@ -406,7 +515,7 @@ function parseUriListFormats () {
 
     for (const payload of candidatePayloads) {
       const parsedPaths = payload
-        .replace(/\u0000/g, '\n')
+        .split('\u0000').join('\n')
         .split(/\r?\n|[\u2028\u2029]/)
         .map((line) => line.trim())
         .filter(Boolean)
@@ -448,6 +557,97 @@ function readClipboardFilePathsInternal () {
   return parseMacNsFilenamesPboardType()
 }
 
+function buildImageAssetFromSnapshot (imageSnapshot) {
+  const assetIdBuffer = imageSnapshot.bitmapBuffer || imageSnapshot.pngBuffer
+  const assetId = crypto.createHash('sha1').update(assetIdBuffer).digest('hex')
+  const imagePath = path.join(getImageAssetsDirectory(), `${assetId}.png`)
+
+  if (!fs.existsSync(imagePath)) {
+    fs.writeFileSync(imagePath, imageSnapshot.pngBuffer)
+  }
+
+  const size = imageSnapshot.image.getSize()
+
+  return {
+    assetId,
+    imagePath,
+    width: size.width,
+    height: size.height,
+    byteSize: imageSnapshot.pngBuffer.length,
+    mimeType: 'image/png'
+  }
+}
+
+function createFileCapture (filePaths, signature) {
+  if (!filePaths.length) return null
+
+  return {
+    kind: 'file',
+    signature,
+    filePaths
+  }
+}
+
+function createImageCapture (imageSnapshot) {
+  if (!imageSnapshot) return null
+
+  const imageAsset = buildImageAssetFromSnapshot(imageSnapshot)
+  return {
+    kind: 'image',
+    signature: `image:${imageAsset.assetId}`,
+    imageAsset
+  }
+}
+
+function createTextCapture (text) {
+  const normalizedText = String(text || '').trim()
+  if (!normalizedText) return null
+
+  return {
+    kind: 'text',
+    signature: `text:${normalizedText}`,
+    text: normalizedText
+  }
+}
+
+function createClipboardCaptureFromCurrentState () {
+  const copiedFiles = readUtoolsCopiedFiles()
+  if (copiedFiles.length) {
+    const filePaths = copiedFiles.map((entry) => entry.path)
+    return createFileCapture(
+      filePaths,
+      `files:${copiedFiles
+        .map((entry) => `${entry.path}:${entry.isDirectory ? 'dir' : 'file'}`)
+        .join('|')}`
+    )
+  }
+
+  const filePaths = readClipboardFilePathsInternal()
+  if (filePaths.length) {
+    return createFileCapture(filePaths, `files:${filePaths.join('|')}`)
+  }
+
+  const imageSnapshot = getClipboardImageSnapshot()
+  if (imageSnapshot) {
+    return createImageCapture(imageSnapshot)
+  }
+
+  const textCapture = createTextCapture(clipboard?.readText?.() || '')
+  if (textCapture) {
+    return textCapture
+  }
+
+  lastQueuedClipboardSignature = ''
+  return null
+}
+
+function captureClipboardToQueue () {
+  const capture = createClipboardCaptureFromCurrentState()
+  if (!capture) return false
+
+  return queueClipboardCapture(capture)
+}
+
 window.services = {
   readFile (file) {
     return fs.readFileSync(file, { encoding: 'utf-8' })
@@ -468,32 +668,23 @@ window.services = {
     if (!clipboard?.readText) return ''
     return clipboard.readText()
   },
+  captureClipboardToQueue () {
+    return captureClipboardToQueue()
+  },
+  consumePendingClipboardCaptures () {
+    if (!pendingClipboardCaptures.length) return []
+    return pendingClipboardCaptures.splice(0, pendingClipboardCaptures.length)
+  },
   getClipboardImageSignature () {
     const snapshot = getClipboardImageSnapshot()
     if (!snapshot) return ''
-    return crypto.createHash('sha1').update(snapshot.pngBuffer).digest('hex')
+    return crypto.createHash('sha1').update(snapshot.bitmapBuffer || snapshot.pngBuffer).digest('hex')
   },
   persistClipboardImageAsset () {
     const snapshot = getClipboardImageSnapshot()
     if (!snapshot) return null
 
-    const assetId = crypto.createHash('sha1').update(snapshot.pngBuffer).digest('hex')
-    const imagePath = path.join(getImageAssetsDirectory(), `${assetId}.png`)
-
-    if (!fs.existsSync(imagePath)) {
-      fs.writeFileSync(imagePath, snapshot.pngBuffer)
-    }
-
-    const size = snapshot.image.getSize()
-
-    return {
-      assetId,
-      imagePath,
-      width: size.width,
-      height: size.height,
-      byteSize: snapshot.pngBuffer.length,
-      mimeType: 'image/png'
-    }
+    return buildImageAssetFromSnapshot(snapshot)
   },
   readImageDataUrl (imagePath) {
     if (!imagePath || !fs.existsSync(imagePath)) return ''
@@ -571,6 +762,7 @@ window.services = {
     return {
       ...clipboardListenerStatus,
       mode: clipboardListenerProcess ? 'native' : resolvedTarget.mode,
+      protocol: clipboardListenerProcess ? clipboardListenerStatus.protocol : resolvedTarget.protocol,
       available: clipboardListenerProcess ? true : resolvedTarget.available,
       listening: Boolean(clipboardListenerProcess),
       targetPath: clipboardListenerStatus.targetPath || resolvedTarget.targetPath,

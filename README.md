@@ -45,7 +45,11 @@
 public/
   plugin.json                         uTools 插件清单
   preload/services.js                preload 桥接层
+  clipboard-event-handler-mac        macOS 原生剪贴板监听器
   clipboard-event-handler-win32.ps1  Windows 原生剪贴板监听脚本
+
+scripts/
+  macos/clipboard-event-handler-mac.swift  macOS 监听器源码
 
 src/
   App.jsx                            应用入口，负责路由、监听和 uTools 子输入框
@@ -95,6 +99,13 @@ npm run dev
 npm run build
 ```
 
+如需重新编译 macOS 监听器：
+
+```bash
+swiftc -O scripts/macos/clipboard-event-handler-mac.swift -o public/clipboard-event-handler-mac
+chmod +x public/clipboard-event-handler-mac
+```
+
 ## 主要快捷键
 
 - `Ctrl/Cmd + F`：聚焦 uTools 子输入框
@@ -117,7 +128,8 @@ npm run build
 
 - 应用层监听由 [src/App.jsx](src/App.jsx) 启动。
 - 监听封装位于 [src/services/clipboard/clipboard-monitor.js](src/services/clipboard/clipboard-monitor.js)。
-- preload 会优先尝试原生事件监听，回退到轮询模式。
+- macOS 当前使用 [public/clipboard-event-handler-mac](public/clipboard-event-handler-mac) 在原生侧直接抓取快照并输出 JSON 事件，失败时回退到轮询。
+- preload 会优先尝试原生监听，回退到轮询模式。
 - Windows 当前使用 [public/clipboard-event-handler-win32.ps1](public/clipboard-event-handler-win32.ps1) 作为原生监听路径。
 
 ### 搜索

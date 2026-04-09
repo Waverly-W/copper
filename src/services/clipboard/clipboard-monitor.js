@@ -1,3 +1,5 @@
+const NATIVE_CAPTURE_PROTOCOL = 'native-capture'
+
 export function startClipboardMonitor ({
   enabled,
   intervalMs = 800,
@@ -9,83 +11,97 @@ export function startClipboardMonitor ({
     return () => {}
   }
 
-  let lastSignature = ''
-  let lastDebugSignature = ''
+  const fallbackIntervalMs = Math.min(intervalMs, 220)
+  const burstSampleCount = 8
+  const burstSampleIntervalMs = 60
+  let intervalTimer = null
+  let burstTimer = null
+  let remainingBurstSamples = 0
 
-  const hasFileishFormats = (formats) => {
-    return (formats || []).some((format) => {
-      const loweredFormat = String(format || '').toLowerCase()
-      return loweredFormat.includes('file') ||
-        loweredFormat.includes('uri') ||
-        loweredFormat.includes('drop') ||
-        loweredFormat.includes('shell')
-    })
-  }
-
-  const captureClipboardSnapshot = () => {
+  const flushPendingClipboardCaptures = () => {
     try {
-      const debugSnapshot = window.services.getClipboardDebugSnapshot?.()
-      const debugSignature = JSON.stringify(debugSnapshot || {})
+      const captures = window.services.consumePendingClipboardCaptures?.() || []
+      captures.forEach((capture) => {
+        if (capture.kind === 'file') {
+          onFileCapture?.(capture.filePaths || [])
+          return
+        }
 
-      const shouldLogFileDebug = hasFileishFormats(debugSnapshot?.formats) && !debugSnapshot?.fileSignature
+        if (capture.kind === 'image') {
+          onImageCapture?.(capture.imageAsset || null)
+          return
+        }
 
-      if (shouldLogFileDebug && debugSignature && debugSignature !== lastDebugSignature) {
-        lastDebugSignature = debugSignature
-        console.warn('[copper] clipboard snapshot json\n' + JSON.stringify(debugSnapshot, null, 2))
-      }
-
-      const fileSignature = window.services.getClipboardFileSignature?.()
-      if (fileSignature) {
-        const nextSignature = `files:${fileSignature}`
-        if (nextSignature === lastSignature) return
-
-        const filePaths = window.services.readClipboardFilePaths?.()
-        if (!filePaths?.length) return
-
-        lastSignature = nextSignature
-        onFileCapture?.(filePaths)
-        return
-      }
-
-      const imageSignature = window.services.getClipboardImageSignature?.()
-      if (imageSignature) {
-        const nextSignature = `image:${imageSignature}`
-        if (nextSignature === lastSignature) return
-
-        const imageAsset = window.services.persistClipboardImageAsset?.()
-        if (!imageAsset) return
-
-        lastSignature = nextSignature
-        onImageCapture?.(imageAsset)
-        return
-      }
-
-      const text = window.services.readClipboardText?.()?.trim()
-      if (text) {
-        const nextSignature = `text:${text}`
-        if (nextSignature === lastSignature) return
-
-        lastSignature = nextSignature
-        onTextCapture?.(text)
-        return
-      }
-
-      lastSignature = ''
+        if (capture.kind === 'text') {
+          onTextCapture?.(capture.text || '')
+        }
+      })
     } catch (error) {
       console.error('[copper] clipboard monitor error', error)
     }
   }
 
-  const unsubscribeClipboardChanges = window.services.subscribeClipboardChanges?.(captureClipboardSnapshot) || (() => {})
+  const captureClipboardSnapshot = () => {
+    window.services.captureClipboardToQueue?.()
+    flushPendingClipboardCaptures()
+  }
+
+  const flushClipboardSnapshot = () => {
+    flushPendingClipboardCaptures()
+  }
+
+  const runBurstSample = () => {
+    burstTimer = null
+    if (remainingBurstSamples <= 0) return
+
+    remainingBurstSamples -= 1
+    captureClipboardSnapshot()
+
+    if (remainingBurstSamples > 0) {
+      burstTimer = window.setTimeout(runBurstSample, burstSampleIntervalMs)
+    }
+  }
+
+  const scheduleBurstSampling = () => {
+    remainingBurstSamples = burstSampleCount
+    if (burstTimer) return
+
+    burstTimer = window.setTimeout(runBurstSample, burstSampleIntervalMs)
+  }
+
+  const handleClipboardChangeSignal = () => {
+    flushPendingClipboardCaptures()
+    if (window.services.getClipboardListenerStatus?.()?.protocol !== NATIVE_CAPTURE_PROTOCOL) {
+      scheduleBurstSampling()
+    }
+  }
+
+  const unsubscribeClipboardChanges =
+    window.services.subscribeClipboardChanges?.(handleClipboardChangeSignal) ||
+    (() => {})
+
   const listenerStatus = window.services.getClipboardListenerStatus?.()
+  const heartbeatHandler = listenerStatus?.protocol === NATIVE_CAPTURE_PROTOCOL
+    ? flushClipboardSnapshot
+    : captureClipboardSnapshot
+
   const heartbeatIntervalMs = listenerStatus?.listening
     ? Math.max(intervalMs * 4, 3000)
-    : intervalMs
+    : fallbackIntervalMs
 
-  captureClipboardSnapshot()
-  const timer = window.setInterval(captureClipboardSnapshot, heartbeatIntervalMs)
+  heartbeatHandler()
+  intervalTimer = window.setInterval(
+    heartbeatHandler,
+    heartbeatIntervalMs
+  )
+
   return () => {
     unsubscribeClipboardChanges()
-    window.clearInterval(timer)
+    if (intervalTimer) {
+      window.clearInterval(intervalTimer)
+    }
+    if (burstTimer) {
+      window.clearTimeout(burstTimer)
+    }
   }
 }
